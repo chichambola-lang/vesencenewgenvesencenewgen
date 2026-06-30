@@ -136,6 +136,11 @@ public final class TtfFont {
       return drawString(renderer, text, cx - w / 2f, y, color);
    }
 
+   public float drawRightString(Renderer2D renderer, String text, float cx, float y, int color) {
+      float w = getStringWidth(text);
+      return drawString(renderer, text, cx - (w), y, color);
+   }
+
    private static final class Glyph {
       int glId;
       Identifier identifier;

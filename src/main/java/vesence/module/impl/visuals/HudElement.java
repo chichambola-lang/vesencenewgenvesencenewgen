@@ -52,29 +52,11 @@ public abstract class HudElement {
         boolean squircle = vesence.module.impl.misc.ClickGui.isHudSquircle();
         float squirt = vesence.module.impl.misc.ClickGui.getHudSquirt();
         int bgColor = ColorUtil.multAlpha(ColorUtil.getColor(0,0,0), ClickGui.hudAlpha.get().floatValue() * alpha);
-
-        if (squircle) {
-            if (isBlurEnabled()) {
-                renderer.blurSquircle(x, y, w, h, vesence.module.impl.misc.ClickGui.blurStrengthHud.get().intValue(), squirt, vesence.utils.render.BorderRadius.all(corner), alpha);
-            }
-            renderer.drawSquircleGradient(x, y, w, h, squirt, vesence.utils.render.BorderRadius.all(corner), ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.08f), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.08f), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.1f), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.1f), ClickGui.guiAlpha.get().floatValue() * alpha));
-            renderContourSquircleOutline(renderer, x, y, w, h, squirt, vesence.utils.render.BorderRadius.all(corner), globalAlpha);
-        } else {
-            if (isBlurEnabled()) {
-                renderer.blur(x, y, w, h, vesence.module.impl.misc.ClickGui.blurStrengthHud.get().intValue(), corner, alpha);
-            }
-            renderer.gradient(x, y, w, h, corner, ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.08f), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.08f), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.1f), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 0.1f), ClickGui.guiAlpha.get().floatValue() * alpha));
-            renderer.gradientOutline(x, y, w, h, corner, ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 1), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.multDark(Renderer2D.ColorUtil.getClientColor(), 1), ClickGui.guiAlpha.get().floatValue() * alpha),
-                    ColorUtil.multAlpha(ColorUtil.BLACK, 0),
-                    ColorUtil.multAlpha(ColorUtil.BLACK, 0), 1.5f, true);
+        if (isBlurEnabled()) {
+            renderer.blur(x, y, w, h, vesence.module.impl.misc.ClickGui.blurStrengthHud.get().intValue(), corner, alpha);
         }
+        renderer.rect(x, y, w, h, corner, ColorUtil.replAlpha(ColorUtil.BLACK, (int) (125 * alpha)));
+
     }
 
     public static void drawSteppedRect(Renderer2D renderer, float rightX, float topY,

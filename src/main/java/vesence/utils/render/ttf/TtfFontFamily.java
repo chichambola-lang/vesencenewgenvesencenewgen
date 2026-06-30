@@ -45,6 +45,10 @@ public final class TtfFontFamily {
       return size(size).drawCenteredString(r, text, cx, y, color);
    }
 
+   public float drawRightString(Renderer2D r, String text, float cx, float y, float size, int color) {
+      return size(size).drawRightString(r, text, cx, y, color);
+   }
+
    public float getStringWidth(String text, float size) {
       return size(size).getStringWidth(text);
    }

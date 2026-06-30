@@ -5,6 +5,7 @@ import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.util.math.MathHelper;
 import org.lwjgl.opengl.GL11;
+import vesence.hmi.script_wrappers.C;
 import vesence.utils.other.Mathf;
 import vesence.renderengine.render.Renderer2D;
 import vesence.utils.render.math.animation.anim2.Interpolator;
@@ -25,7 +26,9 @@ public final class ColorUtil {
       int finalAlpha = Mathf.lerp(color1 >> 24 & 0xFF, color2 >> 24 & 0xFF, percentTo2);
       return getColor(finalRed, finalGreen, finalBlue, finalAlpha);
    }
-
+   public static int theme(int alpha) {
+      return ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor1(), alpha);
+   }
    public static int reAlphaInt(int color, int alpha) {
       return MathHelper.clamp(alpha, 0, 255) << 24 | color & 16777215;
    }

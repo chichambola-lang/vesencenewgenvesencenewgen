@@ -7,6 +7,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.util.Identifier;
 import vesence.Vesence;
+import vesence.hmi.script_wrappers.C;
 import vesence.module.api.Module;
 import vesence.module.impl.visuals.HudElement;
 import vesence.module.api.setting.impl.BooleanSetting;
@@ -21,7 +22,9 @@ import vesence.utils.render.math.animation.anim.util.Easings;
 import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
+import vesence.utils.render.ttf.TtfFonts;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -32,7 +35,7 @@ public class ModernKeybindsElement extends HudElement {
     private static final float PADDING_V = 12;
     private static final float FONT_SIZE = 28;
     private static final float HEADER_FONT_SIZE = 27;
-    private static final float LINE_HEIGHT = 22;
+    private static final float LINE_HEIGHT = 50;
     private static final float HEADER_HEIGHT = 17;
     private static final float ICON_GAP = 6;
     private static final float ROW_RIGHT_EXTRA_GAP = 5f;
@@ -116,20 +119,17 @@ public class ModernKeybindsElement extends HudElement {
         float headerTextW = renderer.measureText(FontRegistry.SF_MEDIUM, headerText, HEADER_FONT_SIZE).width;
         float headerW = headerIconW + ICON_GAP + headerTextW;
 
-        float contentW = Math.max(130, Math.max(maxLineW, headerW));
+        float contentW = Math.max(150, Math.max(maxLineW, headerW));
         float autoRectW = contentW + PADDING_H * 2f + 15;
 
         widthAnim.run(autoRectW, 0.2, Easings.CUBIC_OUT);
         float rectW = (float) widthAnim.get();
         drawHudPanel(renderer, x, y, rectW, 43, globalAlpha);
-        drawHudPanel(renderer, x, y + 55, rectW, rectH - 37, globalAlpha * heightAnim.get());
-        renderer.rect(x - 0.5f, y + 43 / 2f - 18 / 2f, 3, 18, 1, ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), globalAlpha));
-        renderer.rect(x - 0.5f, y + 43 + 27, 3, rectH - 65, 1, ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), globalAlpha));
 
         int theme = Renderer2D.ColorUtil.getClientColor1();
         float curY = y + PADDING_V + 12;
-        renderer.textRight(FontRegistry.VESENCE, x + rectW - 12, curY + 4, 40, "A", ColorUtil.replAlpha(theme, globalAlpha));
-        renderer.text(FontRegistry.MONTSERRAT, x + 13, curY + 4.5f, 31, "Hotkeys", ColorUtil.replAlpha(-1, globalAlpha));
+        TtfFonts.LOX.drawRightString(renderer, "d", x + rectW - 11, curY - 12, 20, ColorUtil.theme((int) (255 * globalAlpha)));
+        renderer.text(FontRegistry.MONTSERRAT, x + 13, curY + 4.5f, 31, "Key" + ColorFormat.color(ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), globalAlpha)) + "binds", ColorUtil.replAlpha(-1, globalAlpha));
         curY += HEADER_HEIGHT;
 
         java.util.List<Float> bindWidths = new java.util.ArrayList<>();
@@ -176,11 +176,17 @@ public class ModernKeybindsElement extends HudElement {
 
             int nameColor = (modTextAlpha << 24) | (WHITE_COLOR & 0x00FFFFFF);
             int bindColor = (modTextAlpha << 24) | (themeColor & 0x00FFFFFF);
-
-            renderer.text(FontRegistry.MON, x + 13, curY + 42 + modAlpha * 5 - 5, 30, mod.category.getIcon(), bindColor, -0.1f);
-            renderer.text(FontRegistry.MONTSERRAT, x + 37, curY + 40 + modAlpha * 5 - 5, 28, modName, nameColor, -0.1f);
-            float bindX = x + rectW - 12;
-            renderer.textRight(FontRegistry.MONTSERRAT, bindX, curY + 41 + modAlpha * 5 - 5, 28, bindStr, bindColor);
+            drawHudPanel(renderer, x + modAlpha * 10 - 10, curY + 10, renderer.measureText(FontRegistry.MONTSERRAT, modName + bindStr, 29).width + 104, 43, modAlpha);
+            renderer.rect(x + 41 + modAlpha * 10 - 10, curY + 24, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * modAlpha)));
+            renderer.text(FontRegistry.MON, x + 13 + modAlpha * 10 - 10, curY + 41, 35, mod.category.getIcon(), bindColor, -0.1f);
+            renderer.text(FontRegistry.MONTSERRAT, x + 55 + modAlpha * 10 - 10, curY + 39 , 29, modName, nameColor, -0.1f);
+            renderer.rect(x + 41 + modAlpha * 10 - 10 + renderer.measureText(FontRegistry.MONTSERRAT, modName, 29).width + 25, curY + 24, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * modAlpha)));
+            float bindX = x + renderer.measureText(FontRegistry.MONTSERRAT, modName + bindStr, 29).width + 88;
+            renderer.rect(x + renderer.measureText(FontRegistry.MONTSERRAT, modName, 29).width + 80 + modAlpha * 10 - 10, curY + 19,
+                    renderer.measureText(FontRegistry.MONTSERRAT, bindStr, 29).width + 15, 26, 5, ColorUtil.theme((int) (30 * modAlpha)));
+            renderer.rectOutline(x + renderer.measureText(FontRegistry.MONTSERRAT, modName, 29).width + 80 + modAlpha * 10 - 10, curY + 19,
+                    renderer.measureText(FontRegistry.MONTSERRAT, bindStr, 29).width + 15, 26, 6, ColorUtil.theme((int) (30 * modAlpha)), 1);
+            renderer.textRight(FontRegistry.MONTSERRAT, bindX + modAlpha * 10 - 10, curY + 38, 29, bindStr, bindColor);
 
             curY += slot.get();
         }
