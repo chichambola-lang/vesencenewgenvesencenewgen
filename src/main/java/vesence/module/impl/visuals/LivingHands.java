@@ -11,19 +11,6 @@ import vesence.module.api.setting.impl.BindSettings;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 
-/**
- * Живые руки (порт мода Hold My Items).
- *
- * Управляет Lua-движком анимаций первого лица (HMI). Когда модуль выключен, все
- * миксины HMI пропускают свою логику и ванильный рендер рук работает как обычно.
- *
- * Настройки:
- *  - Тип анимации: "Дефолт" (богатые покадровые анимации HMI под каждый тип предмета)
- *    или "Взмах" (единый размашистый диагональный удар для всех предметов — реально
- *    другая механика удара).
- *  - Раздельные смещения позиции основной и второстепенной руки по X/Y/Z.
- *  - Клавиша осмотра предмета.
- */
 @IModule(name = "Living Hands", description = "Анимации живых рук от первого лица (Hold My Items)", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class LivingHands extends Module {
@@ -50,7 +37,6 @@ public class LivingHands extends Module {
       return INSTANCE != null && INSTANCE.enable;
    }
 
-   /** 0 = Дефолт (покадровые HMI-анимации), 1 = Взмах (единый удар). */
    public static int getSwingStyle() {
       if (INSTANCE == null) return 0;
       return INSTANCE.animationType.is("Взмах") ? 1 : 0;

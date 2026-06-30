@@ -76,6 +76,7 @@ public class ModuleManager {
       this.module.add(new ItemRelease());
       this.module.add(new FastBreak());
       this.module.add(new AutoTool());
+      this.module.add(new LockSlot());
       this.module.add(new NoInteract());
       this.module.add(new NoPush());
       this.module.add(new FreeCamera());

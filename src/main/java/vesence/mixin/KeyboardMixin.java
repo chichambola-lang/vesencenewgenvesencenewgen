@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import vesence.Vesence;
+import vesence.module.impl.player.LockSlot;
 import vesence.ui.clickgui.GuiClient;
 
 @Mixin(Keyboard.class)
@@ -25,6 +26,13 @@ public class KeyboardMixin {
 
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.currentScreen != null) {
+            return;
+        }
+
+        if (mc.player != null
+                && mc.options.dropKey.matchesKey(input)
+                && LockSlot.shouldCancelSelectedDrop()) {
+            ci.cancel();
             return;
         }
 

@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.Properties;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -17,6 +19,7 @@ public class GuiManager {
    private File file;
    private Theme currentTheme = Theme.Blue;
    private Category currentCategory = Category.VISUALS;
+   private final Map<Category, Float> categoryScrolls = new EnumMap<>(Category.class);
 
    public void init() {
       this.file = new File(Vesence.get.root + "\\configs", "gui.cfg");
@@ -47,6 +50,19 @@ public class GuiManager {
       this.saveSettings();
    }
 
+   public void saveGuiState(Category category, Map<Category, Float> scrolls) {
+      if (category != null) {
+         this.currentCategory = category;
+      }
+
+      if (scrolls != null) {
+         this.categoryScrolls.clear();
+         this.categoryScrolls.putAll(scrolls);
+      }
+
+      this.saveSettings();
+   }
+
    public Theme getCurrentTheme() {
       return this.currentTheme;
    }
@@ -55,11 +71,22 @@ public class GuiManager {
       return this.currentCategory;
    }
 
+   public float getCategoryScroll(Category category) {
+      if (category == null) {
+         return 0.0F;
+      }
+
+      return this.categoryScrolls.getOrDefault(category, 0.0F);
+   }
+
    private void saveSettings() {
       try (FileWriter writer = new FileWriter(this.file)) {
          Properties props = new Properties();
          props.setProperty("theme", this.currentTheme.name());
          props.setProperty("category", this.currentCategory.name());
+         for (Category category : Category.values()) {
+            props.setProperty("scroll." + category.name(), Float.toString(this.getCategoryScroll(category)));
+         }
          props.store(writer, "GUI Settings");
       } catch (IOException var6) {
          var6.printStackTrace();
@@ -72,6 +99,13 @@ public class GuiManager {
          props.load(reader);
          this.currentTheme = Theme.valueOf(props.getProperty("theme", Theme.Blue.name()));
          this.currentCategory = Category.valueOf(props.getProperty("category", Category.VISUALS.name()));
+         this.categoryScrolls.clear();
+         for (Category category : Category.values()) {
+            String scrollValue = props.getProperty("scroll." + category.name());
+            if (scrollValue != null) {
+               this.categoryScrolls.put(category, Float.parseFloat(scrollValue));
+            }
+         }
       } catch (IllegalArgumentException | IOException var6) {
          var6.printStackTrace();
       }

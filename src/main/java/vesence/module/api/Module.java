@@ -29,7 +29,7 @@ import vesence.utils.render.math.animation.anim.util.Easings;
 import vesence.utils.render.math.animation.impl.EaseInOutQuad;
 import vesence.utils.notifications.Notifications;
 import vesence.utils.render.text.ColorFormat;
-import vesence.utils.render.utils.SoundUtil;
+import vesence.utils.render.utils.ClientSound;
 
 @Environment(EnvType.CLIENT)
 public class Module extends Config {
@@ -89,18 +89,14 @@ public class Module extends Config {
          return;
       }
 
-      if (mc.player != null) {
-         SoundUtil.playSound_wav("on", 0.35F);
-      }
+      ClientSound.playModuleToggle(true);
 
       this.mAnim.run(1.0, 0.24F, Easings.QUART_OUT);
    }
 
    public void onDisable() {
       EventManager.unregister(this);
-      if (mc.player != null) {
-         SoundUtil.playSound_wav("off", 0.35F);
-      }
+      ClientSound.playModuleToggle(false);
 
       this.mAnim.run(0.0, 0.24F, Easings.QUART_OUT);
    }

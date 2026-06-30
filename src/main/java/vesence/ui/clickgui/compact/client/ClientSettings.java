@@ -37,16 +37,17 @@ public final class ClientSettings {
       add(ClickGui.hudAlpha);
       add(ClickGui.hudVariation);
       add(ClickGui.squircleHud);
-      add(ClickGui.squircleCornerHud);
 
       add(ClickGui.gui);
       add(ClickGui.blurGui);
       add(ClickGui.blurStrengthGui);
       add(ClickGui.cornerGui);
       add(ClickGui.squircleGui);
-      add(ClickGui.squircleCornerGui);
       add(ClickGui.sort);
       add(ClickGui.guiScale);
       add(ClickGui.guiAlpha);
+      add(ClickGui.moduleSoundTitle);
+      add(ClickGui.moduleEnableSound);
+      add(ClickGui.moduleSoundVolume);
    }
 }
