@@ -11,11 +11,6 @@ import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.impl.visuals.custompet.CustomPetFollowerController;
 import vesence.module.impl.visuals.custompet.CustomPetVariant;
 
-/**
- * Кастомный питомец-компаньон, который следует за игроком и анимируется через GeckoLib 5.x.
- * Перенесён из RelevantPremiumpp4 (GeckoLib 4.8 -> 5.4, Yarn 1.21.4 -> 1.21.11).
- * Питомец полностью локальный и клиентский.
- */
 @IModule(name = "Custom Pet", description = "Клиентский питомец-компаньон рядом с игроком", category = Category.VISUALS)
 @Environment(EnvType.CLIENT)
 public class CustomPet extends Module {

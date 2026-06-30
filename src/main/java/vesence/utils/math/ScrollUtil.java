@@ -36,6 +36,11 @@ public class ScrollUtil {
         return scroll;
     }
 
+    public void setScroll(float scroll) {
+        this.scroll = scroll;
+        this.target = scroll;
+    }
+
     public void setSpeed(float speed) {
         this.speed = speed;
     }

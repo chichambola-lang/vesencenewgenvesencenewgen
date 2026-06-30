@@ -30,6 +30,9 @@ import vesence.ui.clickgui.compact.CompactGuiClick;
 import vesence.ui.clickgui.compact.CompactGuiScreen;
 import vesence.module.impl.misc.ClickGui;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 @Environment(EnvType.CLIENT)
 public class GuiClient extends Screen {
    public MinecraftClient mc = MinecraftClient.getInstance();
@@ -155,7 +158,15 @@ public class GuiClient extends Screen {
       MovementManager.getInstance().unlockMovement("SliderEdit");
       vesence.ui.clickgui.compact.CompactGuiScreen.unfreezeScale();
       if (Vesence.get.guiManager != null) {
-         Vesence.get.guiManager.setGuiCategory(GuiScreen.selectedCategories);
+         Category currentCategory = CompactGuiScreen.selectedCategory != null
+                 ? CompactGuiScreen.selectedCategory
+                 : GuiScreen.selectedCategories;
+         Map<Category, Float> savedScrolls = new EnumMap<>(Category.class);
+         for (Category category : Category.values()) {
+            savedScrolls.put(category, GuiScreen.getPanelScrollUtil(category).getScroll());
+         }
+         savedScrolls.put(currentCategory, CompactGuiScreen.moduleScroll.getScroll());
+         Vesence.get.guiManager.saveGuiState(currentCategory, savedScrolls);
       }
       super.close();
    }
@@ -178,7 +189,6 @@ public class GuiClient extends Screen {
    public void init() {
       super.init();
       GuiInit.init();
-      CompactGuiScreen.init();
       MinecraftClient client = MinecraftClient.getInstance();
       if (client != null && client.mouse != null) {
          client.mouse.unlockCursor();
@@ -201,8 +211,27 @@ public class GuiClient extends Screen {
          GuiScreen.selectedCategories = Category.COMBAT;
       }
 
+      for (Category category : Category.values()) {
+         GuiScreen.getPanelScrollUtil(category).setScroll(
+                 Vesence.get.guiManager != null ? Vesence.get.guiManager.getCategoryScroll(category) : 0.0F
+         );
+      }
+
+      CompactGuiScreen.selectedCategory = GuiScreen.selectedCategories;
+      CompactGuiScreen.themeSelected = false;
+      CompactGuiScreen.clientSelected = false;
+      CompactGuiScreen.selectedModule = null;
+      CompactGuiScreen.moduleScroll.setScroll(
+              Vesence.get.guiManager != null
+                      ? Vesence.get.guiManager.getCategoryScroll(CompactGuiScreen.selectedCategory)
+                      : 0.0F
+      );
+      CompactGuiScreen.clientScroll.setScroll(0.0F);
+
       if (Vesence.get.manager != null) {
          GuiScreen.modules = Vesence.get.manager.getType(GuiScreen.selectedCategories);
       }
+
+      CompactGuiScreen.init();
    }
 }
