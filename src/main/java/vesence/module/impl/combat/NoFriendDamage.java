@@ -9,7 +9,6 @@ import vesence.event.player.AttackEvent;
 import vesence.module.api.Category;
 import vesence.module.api.IModule;
 import vesence.module.api.Module;
-import vesence.module.api.setting.Setting;
 import vesence.utils.friends.FriendStorage;
 
 @IModule(
@@ -25,7 +24,6 @@ public class NoFriendDamage extends Module {
 
     public NoFriendDamage() {
         instance = this;
-        addSettings(new Setting[]{});
     }
 
     @EventInit
@@ -38,10 +36,22 @@ public class NoFriendDamage extends Module {
         Entity target = event.getTarget();
 
         if (target instanceof PlayerEntity player) {
-            if (FriendStorage.isFriend(player.getName().getString())) {
+            if (shouldCancelAttack(player)) {
                 event.cancel();
             }
         }
+    }
+
+    public boolean shouldBlockAttack(Entity entity) {
+        if (!this.enable || !(entity instanceof PlayerEntity player)) {
+            return false;
+        }
+
+        return FriendStorage.isFriend(player.getName().getString());
+    }
+
+    public static boolean shouldCancelAttack(Entity entity) {
+        return instance != null && instance.shouldBlockAttack(entity);
     }
 
     public static boolean isFriend(Entity entity) {

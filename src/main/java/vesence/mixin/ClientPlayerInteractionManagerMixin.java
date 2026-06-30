@@ -33,10 +33,15 @@ import vesence.module.impl.player.NoEntityTrace;
 public abstract class ClientPlayerInteractionManagerMixin {
    @Inject(
       method = {"attackEntity"},
-      at = {@At("HEAD")}
+      at = {@At("HEAD")},
+      cancellable = true
    )
    private void onAttackEntity(PlayerEntity player, Entity target, CallbackInfo ci) {
-      EventManager.call(new AttackEvent(target));
+      AttackEvent event = new AttackEvent(target);
+      EventManager.call(event);
+      if (event.isCancelled()) {
+         ci.cancel();
+      }
    }
 
     @Inject(method = "interactEntity", at = @At("HEAD"), cancellable = true)

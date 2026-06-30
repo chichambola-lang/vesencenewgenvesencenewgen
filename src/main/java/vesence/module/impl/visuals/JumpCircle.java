@@ -36,14 +36,6 @@ import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.api.setting.impl.SliderSetting;
 import vesence.renderengine.render.Renderer2D;
 
-/**
- * Полный порт Jump Circle из Relevant под рендер-пайплайн 1.21.11.
- *
- * Сохранена вся логика оригинала: спавн круга при отрыве от земли, до 8 кругов,
- * рост радиуса по easeOutCubic, вращение с покачиванием, пульсация масштаба/альфы,
- * двухслойный glow (основной + затемнённый контур) и цвета из темы клиента.
- * Настройки (Вид/Радиус/Скорость/Скорость исчезновения) рабочие и применяются вживую.
- */
 @IModule(name = "Jump Circle", description = "Круг под ногами при прыжке", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class JumpCircle extends Module {

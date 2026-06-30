@@ -288,7 +288,6 @@ public class AttackAura extends Module {
 
             boolean canPacket = !mc.player.hasStatusEffect(StatusEffects.BLINDNESS) && !mc.player.isFlyingVehicle() && !extraSettings.get("Легитный спринт");
             if (target != null) {
-                Attack.antiMissesHittingUpdate(target, true, this.isRayCastRuleToAttack(), false);
                 boolean canAttack = Attack.shouldAttack(target, this.isRayCastRuleToAttack(), true, true, 0L, ranges);
                 if (canAttack) {
                     Runnable[] shieldBreak = Attack.hitShieldBreakTaskForUse(target, misc.get("Автоматичиски ломать щит"));

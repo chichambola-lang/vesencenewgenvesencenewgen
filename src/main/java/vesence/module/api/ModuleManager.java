@@ -27,6 +27,7 @@ public class ModuleManager {
       this.module.add(new Arrows());
       this.module.add(new vesence.module.impl.visuals.JumpCircle());
       this.module.add(new vesence.module.impl.visuals.TargetESP());
+      this.module.add(new vesence.module.impl.visuals.FakePlayer());
       this.module.add(new vesence.module.impl.visuals.CameraClip());
       this.module.add(new vesence.module.impl.visuals.Particles());
       this.module.add(new vesence.module.impl.visuals.ParticularWater());
@@ -43,6 +44,7 @@ public class ModuleManager {
       this.module.add(new Criticals());
       this.module.add(new NoFriendDamage());
       this.module.add(new NameProtect());
+      this.module.add(new RPSpoofer());
       this.module.add(new AutoDuel());
       this.module.add(new ClickGui());
       this.module.add(new NoRender());

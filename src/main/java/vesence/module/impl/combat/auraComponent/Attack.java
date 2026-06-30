@@ -45,10 +45,7 @@ public final class Attack implements IMinecraft {
    private static final SecureRandom secureRandom = new SecureRandom();
    private static final MinecraftClient mc = MinecraftClient.getInstance();
    public static long hitCounterCPSBypass;
-   public static int randomInt1PosibleOrNotOnHit = -1;
    private static final StopWatch cooldownTimer = new StopWatch();
-   private static boolean missDetected;
-   private static int counterTo0PostMissHits;
 
    public static void hitCounterCPSBypassNext() {
       hitCounterCPSBypass++;
@@ -62,37 +59,8 @@ public final class Attack implements IMinecraft {
       return hitCounterCPSBypass % 7L == 3L;
    }
 
-   public static PlayerEntity getSelf() {
-      return mc.player;
-   }
-
    public static World getWorld() {
       return mc.world;
-   }
-
-   public static float applyGaussianJitter(float rotation) {
-      float strength = 0.2F;
-      return (float)(rotation + (secureRandom.nextGaussian() * 0.2F * 2.0 - 0.2F));
-   }
-
-   public static boolean randomBoolean(int chance010) {
-      return secureRandom.nextInt(chance010 + 1) >= 1.0F * (1.0F / Math.max((float)chance010, 1.0F));
-   }
-
-   public static boolean randomBoolean() {
-      return secureRandom.nextInt(2) == 1;
-   }
-
-   public static float randomFloat(float min, float max) {
-      return secureRandom.nextFloat(min, max);
-   }
-
-   public static float randomFloat() {
-      return randomFloat(0.0F, 1.0F);
-   }
-
-   public static int randomInt1PosibleOrNot() {
-      return randomBoolean() ? 1 : -1;
    }
 
    public static int getAxeSlot() {
@@ -334,14 +302,6 @@ public final class Attack implements IMinecraft {
       return cooldownTimer.finished(getMsCooldown() + msOffset);
    }
 
-   public static boolean msCooldownReached() {
-      return msCooldownReached(0L);
-   }
-
-   public static boolean msCooldownHasMs(long ms) {
-      return cooldownTimer.finished(ms);
-   }
-
    public static float msCooldownPC01() {
       return Math.min((float)cooldownTimer.elapsedTime() / (float)getMsCooldown(), 1.0F);
    }
@@ -380,36 +340,6 @@ public final class Attack implements IMinecraft {
               && !mc.player.isOnGround()
               && !mc.player.isSubmergedIn(FluidTags.WATER)
               && mc.player.getVelocity().y <= 0.0050162615090425808;
-   }
-
-   private static int maxHitsCountOnMiss() {
-      return 3;
-   }
-
-   public static void antiMissesHittingReset() {
-      missDetected = false;
-      counterTo0PostMissHits = 0;
-   }
-
-   public static void antiMissesHittingUpdate(LivingEntity targetIn, boolean cpsBypass, boolean rayCastCheck, boolean enabled) {
-      if (targetIn == null || counterTo0PostMissHits == 0 || !enabled || targetIn.hurtTime != 0) {
-         antiMissesHittingReset();
-      }
-
-      if (enabled && targetIn != null && msCooldownHasMs(cpsBypassTrigger() ? 250L : 150L) && mc.player.handSwinging) {
-         if (!missDetected && counterTo0PostMissHits == 0 && targetIn.hurtTime == 0) {
-            missDetected = true;
-            counterTo0PostMissHits = maxHitsCountOnMiss();
-         }
-
-         if (missDetected
-                 && counterTo0PostMissHits > 0
-                 && targetIn != null
-                 && (!rayCastCheck || anyEntityOnRay(targetIn, 6.0))
-                 && useEntity(targetIn, () -> {}, () -> {}, Hand.MAIN_HAND, cpsBypass)) {
-            counterTo0PostMissHits--;
-         }
-      }
    }
 
    @Generated
