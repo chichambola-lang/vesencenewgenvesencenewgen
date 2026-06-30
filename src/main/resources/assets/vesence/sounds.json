@@ -1,0 +1,62 @@
+{
+  "kolokolnia_kill": {
+    "sounds": [
+      "vesence:kolokolnia_kill"
+    ]
+  },
+  "moan1": {
+    "sounds": [
+      "vesence:moan1"
+    ]
+  },
+  "moan2": {
+    "sounds": [
+      "vesence:moan2"
+    ]
+  },
+  "moan3": {
+    "sounds": [
+      "vesence:moan3"
+    ]
+  },
+  "moan4": {
+    "sounds": [
+      "vesence:moan4"
+    ]
+  },
+  "module_disable": {
+    "sounds": [
+      "vesence:module_disable"
+    ]
+  },
+  "module_enable": {
+    "sounds": [
+      "vesence:module_enable"
+    ]
+  },
+  "off": {
+    "sounds": [
+      "vesence:off"
+    ]
+  },
+  "on": {
+    "sounds": [
+      "vesence:on"
+    ]
+  },
+  "crime": {
+    "sounds": [
+      "vesence:crime"
+    ]
+  },
+  "metallic": {
+    "sounds": [
+      "vesence:metallic"
+    ]
+  },
+  "welcome": {
+  "sounds": [
+    "vesence:welcome"
+  ]
+}
+}

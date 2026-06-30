@@ -1,0 +1,84 @@
+package vesence.module.impl.movement;
+
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import vesence.event.EventInit;
+import vesence.event.impl.EventUpdate;
+import vesence.module.api.Category;
+import vesence.module.api.IModule;
+import vesence.module.api.Module;
+import vesence.module.api.setting.Setting;
+import vesence.module.api.setting.impl.MultiBooleanSetting;
+import vesence.module.api.setting.impl.BooleanSetting;
+
+@IModule(
+   name = "NoPush",
+   description = "Убирает отталкивание от тех или иных энтити",
+   category = Category.MOVEMENT,
+   bind = -1
+)
+@Environment(EnvType.CLIENT)
+public class NoPush extends Module {
+
+   public final MultiBooleanSetting modes = new MultiBooleanSetting("Игнорировать",
+      new BooleanSetting("Игроков", true),
+      new BooleanSetting("Воду", false),
+      new BooleanSetting("Блоки", true),
+      new BooleanSetting("Удочку", true)
+   );
+
+   private boolean wasNoClip = false;
+
+   public NoPush() {
+      this.addSettings(new Setting[]{modes});
+   }
+
+   public static NoPush getInstance() {
+      return (NoPush) vesence.Vesence.get.manager.getModule(NoPush.class);
+   }
+
+   @EventInit
+   public void onTick(EventUpdate e) {
+      if (mc.player == null) return;
+      if (!this.enable) {
+         if (wasNoClip) {
+            mc.player.noClip = false;
+            wasNoClip = false;
+         }
+         return;
+      }
+
+      if (shouldIgnoreBlocks()) {
+         mc.player.noClip = true;
+         wasNoClip = true;
+      } else if (wasNoClip) {
+         mc.player.noClip = false;
+         wasNoClip = false;
+      }
+   }
+
+   public boolean shouldIgnorePlayers() {
+      return modes.get("Игроков");
+   }
+
+   public boolean shouldIgnoreWater() {
+      return modes.get("Воду");
+   }
+
+   public boolean shouldIgnoreBlocks() {
+      return modes.get("Блоки");
+   }
+
+   public boolean shouldIgnoreFishing() {
+      return modes.get("Удочку");
+   }
+
+   @Override
+   public void onDisable() {
+      if (mc.player != null && wasNoClip) {
+         mc.player.noClip = false;
+         wasNoClip = false;
+      }
+      super.onDisable();
+   }
+}

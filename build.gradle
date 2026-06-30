@@ -1,0 +1,120 @@
+plugins {
+    id 'fabric-loom' version '1.14.1'
+    id 'maven-publish'
+}
+
+version = project.properties['mod_version'] ?: '1.0.0'
+group = 'vesence'
+
+configurations {
+    embeddedLibrary
+}
+
+base {
+    archivesName = 'vesence'
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/vesence.accesswidener")
+    runConfigs.configureEach {
+        vmArgs('-Xmx6G', '-Xms2G', '-XX:+UseG1GC')
+    }
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven { url "https://maven.fabricmc.net/" }
+    maven { url "https://libraries.minecraft.net/" }
+    maven { url "https://jitpack.io" }
+    // GeckoLib — 3D animation engine for CustomPet companion
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroup("software.bernie.geckolib")
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    compileOnly "org.projectlombok:lombok:1.18.34"
+    annotationProcessor "org.projectlombok:lombok:1.18.34"
+
+    include(implementation("io.github.llamalad7:mixinextras-fabric:0.4.1"))
+    include(implementation("org.lwjgl:lwjgl-harfbuzz:3.3.3"))
+    include(runtimeOnly("org.lwjgl:lwjgl-harfbuzz:3.3.3:natives-windows"))
+    include(runtimeOnly("org.lwjgl:lwjgl-harfbuzz:3.3.3:natives-linux"))
+    include(runtimeOnly("org.lwjgl:lwjgl-harfbuzz:3.3.3:natives-macos"))
+
+    // jcodec — чистая Java декодирование MP4/H.264
+    include(implementation("org.jcodec:jcodec:0.2.5"))
+    include(implementation("org.jcodec:jcodec-javase:0.2.5"))
+
+    // CatBoost AI prediction
+    include(implementation("ai.catboost:catboost-prediction:1.2.2"))
+
+    // smile-core + smile-base — нейросеть для Aura (Neural режим)
+    include(implementation("com.github.haifengl:smile-core:3.0.2"))
+    include(implementation("com.github.haifengl:smile-base:3.0.2"))
+    
+    // LuaJ — интерпретатор Lua для движка живых рук (Hold My Items порт)
+    include(implementation("org.luaj:luaj-jse:3.0.1"))
+
+    // Kotlin standard library - требуется для media-player-info
+    include(implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.10"))
+    
+    // Kotlinx serialization - требуется для media-player-info
+    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.5.1"))
+    include(implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1"))
+    
+    // Media Player Info - для получения информации о проигрываемой музыке
+    implementation(files("libs/media-player-info-0.1.0.jar"))
+    embeddedLibrary(files("libs/media-player-info-0.1.0.jar"))
+
+    // GeckoLib 5.x — движок 3D-анимаций для CustomPet (питомец-компаньон).
+    // Версия под Minecraft 1.21.11. Зашиваем в финальный jar через include().
+    modImplementation "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+    include "software.bernie.geckolib:geckolib-fabric-${project.minecraft_version}:${project.geckolib_version}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    
+    filesMatching("fabric.mod.json") {
+        expand "version": project.version
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 21
+    it.options.encoding = 'UTF-8'
+    it.options.compilerArgs.addAll(['-Xmaxerrs', '10000'])
+}
+
+java {
+    withSourcesJar()
+    
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
+tasks.named('sourcesJar') {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+jar {
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}"}
+    }
+    from({
+        configurations.embeddedLibrary.collect { zipTree(it) }
+    }) {
+        exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA'
+    }
+}
