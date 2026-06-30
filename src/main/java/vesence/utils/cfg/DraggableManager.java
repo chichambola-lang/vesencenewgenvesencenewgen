@@ -29,9 +29,9 @@ public class DraggableManager {
         }
 
         Hud hudModule = (Hud) Vesence.get.manager.module.stream()
-            .filter(m -> m instanceof Hud)
-            .findFirst()
-            .orElse(null);
+                .filter(m -> m instanceof Hud)
+                .findFirst()
+                .orElse(null);
 
         if (hudModule != null) {
             for (HudElement element : hudModule.getHudElements()) {
@@ -50,9 +50,9 @@ public class DraggableManager {
         }
 
         Hud hudModule = (Hud) Vesence.get.manager.module.stream()
-            .filter(m -> m instanceof Hud)
-            .findFirst()
-            .orElse(null);
+                .filter(m -> m instanceof Hud)
+                .findFirst()
+                .orElse(null);
 
         if (hudModule != null) {
             for (HudElement element : hudModule.getAllHudElements()) {
@@ -73,9 +73,9 @@ public class DraggableManager {
         }
 
         Hud hudModule = (Hud) Vesence.get.manager.module.stream()
-            .filter(m -> m instanceof Hud)
-            .findFirst()
-            .orElse(null);
+                .filter(m -> m instanceof Hud)
+                .findFirst()
+                .orElse(null);
 
         if (hudModule != null) {
             for (HudElement element : hudModule.getHudElements()) {
@@ -115,9 +115,9 @@ public class DraggableManager {
         }
 
         Hud hudModule = (Hud) Vesence.get.manager.module.stream()
-            .filter(m -> m instanceof Hud)
-            .findFirst()
-            .orElse(null);
+                .filter(m -> m instanceof Hud)
+                .findFirst()
+                .orElse(null);
 
         if (hudModule != null) {
             for (HudElement element : hudModule.getAllHudElements()) {
@@ -163,9 +163,9 @@ public class DraggableManager {
             return;
         }
         Hud hudModule = (Hud) Vesence.get.manager.module.stream()
-            .filter(m -> m instanceof Hud)
-            .findFirst()
-            .orElse(null);
+                .filter(m -> m instanceof Hud)
+                .findFirst()
+                .orElse(null);
         if (hudModule == null) {
             return;
         }

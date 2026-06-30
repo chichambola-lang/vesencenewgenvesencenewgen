@@ -60,8 +60,8 @@ public abstract class HudElement {
     }
 
     public static void drawSteppedRect(Renderer2D renderer, float rightX, float topY,
-                                        float[] widths, float[] rowHeights, int color,
-                                        float corner, float stepRound) {
+                                       float[] widths, float[] rowHeights, int color,
+                                       float corner, float stepRound) {
         if (widths == null || widths.length == 0) return;
 
         float curY = topY;
@@ -198,7 +198,7 @@ public abstract class HudElement {
     }
 
     public static void renderContourSquircleOutline(Renderer2D renderer, float px, float py, float w, float h,
-                                                     float squirt, BorderRadius radius, float alpha) {
+                                                    float squirt, BorderRadius radius, float alpha) {
         if (!isContourEnabled()) return;
         renderer.drawSquircleOutline(px, py, w, h, squirt, radius, getContourColor(alpha), 1f);
     }

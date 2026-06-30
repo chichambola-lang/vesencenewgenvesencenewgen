@@ -39,14 +39,14 @@ public class ModernTargetHudElement extends HudElement {
 
     private static final float PADDING_H  = 12f;
     private static final float PADDING_V  = 10f;
-    private static final float NAME_FONT  = 29f;
+    private static final float NAME_FONT  = 31;
     private static final float INFO_FONT  = 22f;
     private static final float HEAD_SIZE  = 43;
     private static final float BAR_W      = 155;
     private static final float BAR_H      = 6;
-    private static final float HEAD_ROUND = 8;
-    private static final float RECT_W     = 215;
-    private static final float RECT_H     = 87;
+    private static final float HEAD_ROUND = 9;
+    private static final float RECT_W     = 190;
+    private static final float RECT_H     = 70;
     private static final float EQUIP_ICON_SIZE = 9;
     private static final float EQUIP_SLOT_SIZE = 17f;
     private static final float EQUIP_GAP = 4f;
@@ -153,13 +153,13 @@ public class ModernTargetHudElement extends HudElement {
         boolean shouldShow = actualTarget != null || chatOpen;
 
         visibilityAnim.update();
-        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.22, Easings.CUBIC_OUT);
+        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.25f, Easings.SINE_OUT, true);
 
         scaleAnim.update();
         scaleAnim.run(shouldShow ? 1.0 : 0.0, 0.25, Easings.CUBIC_OUT);
 
         sideAnim.update();
-        sideAnim.run(1.0, 0.20, Easings.CUBIC_OUT);
+        sideAnim.run(1.0, 0.0, Easings.CUBIC_OUT);
 
         float globalAlpha = (float) visibilityAnim.get();
         if (globalAlpha < 0.005f) return;
@@ -196,21 +196,22 @@ public class ModernTargetHudElement extends HudElement {
 
         r.pushAlpha(globalAlpha);
         drawHudPanel(r, x, y, rectW, rectH, globalAlpha * scaleAlpha);
-        r.rect(x - 0.5f, y + 20, 3, rectH - 40, 1, ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), globalAlpha));
+        r.rect(x + HEAD_SIZE + 25, y + 18.5f, 1, 35, ColorUtil.replAlpha(-1, (int) (25 * globalAlpha)));
 
         float headX = x + 12;
         float headY = y + 14;
         drawFace(r, headX, headY, target);
 
-        float textX     = x + HEAD_SIZE + 23;
+        float textX     = x + HEAD_SIZE + 40;
         float hpAnchorX = x + rectW - HEAD_SIZE - PADDING_H * 3 + (HEAD_SIZE + PADDING_H * 2) * t;
         float baseY   = y + PADDING_V + 11f;
         float hpTextY = baseY + 10;
 
         String hpValueStr = health == -1.0f ? "???" : String.format("%d", Math.round(health)) + ColorFormat.color(255,255,255);
+        String absorptionValueStr = absorption == -1.0f ? "???" : String.valueOf(Math.round(absorption));
 
         float hpFontSize    = NAME_FONT;
-        float hpTextW       = r.measureText(font, hpValueStr, hpFontSize).width;
+        float hpTextW       = r.measureText(font, hpValueStr + "  +  " + absorptionValueStr, hpFontSize).width;
         float nameAreaEnd   = hpAnchorX - hpTextW - 6f;
         float nameAreaWidth = Math.max(20f, nameAreaEnd - textX);
         float nameWidth     = r.measureText(FontRegistry.MONTSERRAT, nick, NAME_FONT, -0.15f).width;
@@ -242,17 +243,18 @@ public class ModernTargetHudElement extends HudElement {
         }
         r.popClipRect();
         String hpClean = health == -1.0f ? "???" : String.valueOf(Math.round(health));
-        vesence.utils.render.text.AnimatedText.draw(r, FontRegistry.MONTSERRAT, "mthp", hpClean,
-              hpAnchorX, hpTextY, hpFontSize, ColorUtil.replAlpha(theme, globalAlpha),
-              vesence.utils.render.text.AnimatedText.ALIGN_RIGHT);
+        String absorptionClean = absorption == -1.0f ? "???" : String.valueOf(Math.round(absorption));
+        r.textRight(FontRegistry.MONTSERRAT,
+              hpAnchorX, hpTextY, hpFontSize, hpClean
+                        + ColorFormat.color(ColorUtil.replAlpha(-1, globalAlpha)) + " + " + ColorFormat.color(224,162,66) + absorptionClean, ColorUtil.replAlpha(theme, globalAlpha));
 
         float equipY = hpTextY + 9f;
         float equipScale = (float) (equipmentAnim.get() * alphaAnim.get());
-        drawEquipmentRow(r, ctx, x + HEAD_SIZE - 1, rectW - HEAD_SIZE - PADDING_H * 2f - 8f, y + 39, globalAlpha, equipScale, getScale());
+        drawEquipmentRow(r, ctx, x - 23, rectW - HEAD_SIZE - PADDING_H * 2f - 8f, y - 27, globalAlpha, equipScale, getScale());
 
-        float barX = x + PADDING_H;
-        float barY = y + rectH - 19;
-        float barW = rectW - 24;
+        float barX = x + HEAD_SIZE + 40.5f;
+        float barY = y + rectH / 2f + 10;
+        float barW = rectW - 95;
 
         r.rect(barX, barY, barW, BAR_H, 3,
                 ColorUtil.getColor(255, 10));
