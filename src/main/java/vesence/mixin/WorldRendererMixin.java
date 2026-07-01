@@ -23,11 +23,38 @@ import vesence.event.render.EventRender3D;
 import vesence.event.render.WorldRenderEvent;
 import vesence.renderengine.providers.GlState;
 import vesence.module.impl.visuals.Ambience;
+import vesence.module.impl.visuals.ChunksAnimation;
 import vesence.renderengine.render.Renderer2D;
 
 @Environment(EnvType.CLIENT)
 @Mixin({ WorldRenderer.class })
 public class WorldRendererMixin {
+
+   /**
+    * ChunksAnimation: смещаем positionMatrix (view) по Y в начале рендера —
+    * это сдвигает весь мир вверх/вниз, давая эффект "мир появляется".
+    */
+   @Inject(method = "render", at = @At("HEAD"))
+   private void vesence$chunksAnimationHead(
+           ObjectAllocator allocator,
+           RenderTickCounter tickCounter,
+           boolean renderBlockOutline,
+           Camera camera,
+           Matrix4f positionMatrix,
+           Matrix4f basicProjectionMatrix,
+           Matrix4f projectionMatrix,
+           GpuBufferSlice fog,
+           Vector4f fogColor,
+           boolean shouldRenderSky,
+           CallbackInfo ci) {
+      ChunksAnimation anim = ChunksAnimation.INSTANCE;
+      if (anim != null && anim.enable) {
+         float offset = anim.computeOffsetY();
+         if (offset != 0.0F) {
+            positionMatrix.translate(0.0F, offset, 0.0F);
+         }
+      }
+   }
 
    @Inject(method = { "render" }, at = { @At("RETURN") })
    private void publishWorldRenderEvent(
@@ -42,6 +69,16 @@ public class WorldRendererMixin {
            Vector4f fogColor,
            boolean shouldRenderSky,
            CallbackInfo ci) {
+      // Убираем ChunksAnimation смещение перед отправкой EventRender3D,
+      // чтобы модули (SkeletonESP, TargetESP и т.д.) работали в корректных координатах.
+      ChunksAnimation anim = ChunksAnimation.INSTANCE;
+      if (anim != null && anim.enable) {
+         float offset = anim.computeOffsetY();
+         if (offset != 0.0F) {
+            positionMatrix.translate(0.0F, -offset, 0.0F);
+         }
+      }
+
       MatrixStack stack = new MatrixStack();
       Matrix4f basePositionMatrix = new Matrix4f(positionMatrix);
       stack.multiplyPositionMatrix(new Matrix4f(basePositionMatrix));

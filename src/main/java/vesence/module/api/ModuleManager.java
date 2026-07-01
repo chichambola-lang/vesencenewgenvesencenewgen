@@ -28,6 +28,11 @@ public class ModuleManager {
       this.module.add(new vesence.module.impl.visuals.JumpCircle());
       this.module.add(new vesence.module.impl.visuals.TargetESP());
       this.module.add(new vesence.module.impl.visuals.FakePlayer());
+      this.module.add(new vesence.module.impl.visuals.SkeletonESP());
+      this.module.add(new vesence.module.impl.visuals.ChunksAnimation());
+      this.module.add(new vesence.module.impl.visuals.EnchantmentColor());
+      this.module.add(new vesence.module.impl.visuals.HitBubbles());
+      this.module.add(new vesence.module.impl.visuals.HitMarker());
       this.module.add(new vesence.module.impl.visuals.CameraClip());
       this.module.add(new vesence.module.impl.visuals.Particles());
       this.module.add(new vesence.module.impl.visuals.ParticularWater());
@@ -67,6 +72,7 @@ public class ModuleManager {
       this.module.add(new Projectile());
       this.module.add(new ItemPhysic());
       this.module.add(new vesence.module.impl.visuals.CustomHand());
+      this.module.add(new vesence.module.impl.visuals.ViewModel());
       this.module.add(new vesence.module.impl.visuals.LivingHands());
       this.module.add(new HitBox());
       this.module.add(new NoEntityTrace());

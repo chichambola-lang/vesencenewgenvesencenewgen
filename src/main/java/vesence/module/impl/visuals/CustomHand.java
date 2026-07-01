@@ -3,7 +3,6 @@ package vesence.module.impl.visuals;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.item.CrossbowItem;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.MathHelper;
@@ -13,7 +12,6 @@ import vesence.event.EventInit;
 import vesence.event.impl.EventChangeWorld;
 import vesence.event.render.GlassHandsRenderEvent;
 import vesence.event.render.HandAnimationEvent;
-import vesence.event.render.HandOffsetEvent;
 import vesence.event.render.HandShadowRenderEvent;
 import vesence.event.render.SwingDurationEvent;
 import vesence.module.api.Category;
@@ -28,7 +26,7 @@ import vesence.renderengine.postfx.GlassHandsRenderer;
 import vesence.renderengine.postfx.HandShadowTrailRenderer;
 import vesence.renderengine.render.Renderer2D;
 
-@IModule(name = "Custom Hand", description = "Кастомная рука: анимация взмаха, позиция, стекло и огонь", category = Category.VISUALS, bind = -1)
+@IModule(name = "Custom Hand", description = "Кастомная рука: анимация взмаха, стекло и огонь", category = Category.VISUALS, bind = -1)
 @Environment(EnvType.CLIENT)
 public class CustomHand extends Module {
 
@@ -53,14 +51,6 @@ public class CustomHand extends Module {
       .hidden(() -> !swingEnabled.get());
    private final BooleanSetting hideVanilla = new BooleanSetting("Скрыть ванильную анимацию", false)
       .hidden(() -> !swingEnabled.get());
-
-   private final BooleanSetting viewModelEnabled = new BooleanSetting("Позиция руки", false);
-   private final SliderSetting mainHandX = new SliderSetting("Основная рука X", 0, -1, 1, 0.01).hidden(() -> !viewModelEnabled.get());
-   private final SliderSetting mainHandY = new SliderSetting("Основная рука Y", 0, -1, 1, 0.01).hidden(() -> !viewModelEnabled.get());
-   private final SliderSetting mainHandZ = new SliderSetting("Основная рука Z", 0, -2.5, 2.5, 0.01).hidden(() -> !viewModelEnabled.get());
-   private final SliderSetting offHandX = new SliderSetting("Второстепенная рука X", 0, -1, 1, 0.01).hidden(() -> !viewModelEnabled.get());
-   private final SliderSetting offHandY = new SliderSetting("Второстепенная рука Y", 0, -1, 1, 0.01).hidden(() -> !viewModelEnabled.get());
-   private final SliderSetting offHandZ = new SliderSetting("Второстепенная рука Z", 0, -2.5, 2.5, 0.01).hidden(() -> !viewModelEnabled.get());
 
    private final BooleanSetting glassEnabled = new BooleanSetting("Стеклянная рука", false);
    private final SliderSetting glassBlurRadius = new SliderSetting("Сила размытия", 2.5, 1.0, 5.0, 0.1, false).hidden(() -> !glassEnabled.get());
@@ -90,7 +80,6 @@ public class CustomHand extends Module {
       INSTANCE = this;
       this.addSettings(new Setting[]{
          swingEnabled, swingType, hitStrength, dropDownCorner, dropDownSlant, swingSpeed, onlySwing, onlyAura, hideVanilla,
-         viewModelEnabled, mainHandX, mainHandY, mainHandZ, offHandX, offHandY, offHandZ,
          glassEnabled, glassBlurRadius, glassBlurIterations, glassSaturation, glassTintIntensity, glassEdgeGlow, glassEdgeGlowIntensity,
          shadowEnabled, shadowOpacity, itemBlur, shadowSoftness, shadowTrailDecay, shadowTrailIntensity, shadowBlurQuality
       });
@@ -237,27 +226,6 @@ public class CustomHand extends Module {
          renderer.captureSceneBefore();
       } else if (event.getPhase() == HandShadowRenderEvent.Phase.POST) {
          renderer.captureSceneAfterAndRender();
-      }
-   }
-
-   @EventInit
-   public void onHandOffset(HandOffsetEvent e) {
-      if (!this.enable || !this.viewModelEnabled.get()) {
-         return;
-      }
-      if (e.getStack().isEmpty()) {
-         return;
-      }
-      Hand hand = e.getHand();
-      if (hand.equals(Hand.MAIN_HAND) && e.getStack().getItem() instanceof CrossbowItem) {
-         return;
-      }
-
-      MatrixStack matrix = e.getMatrices();
-      if (hand.equals(Hand.MAIN_HAND)) {
-         matrix.translate(this.mainHandX.get().floatValue(), this.mainHandY.get().floatValue(), this.mainHandZ.get().floatValue());
-      } else {
-         matrix.translate(this.offHandX.get().floatValue(), this.offHandY.get().floatValue(), this.offHandZ.get().floatValue());
       }
    }
 

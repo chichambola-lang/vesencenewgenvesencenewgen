@@ -26,6 +26,7 @@ import vesence.event.render.GlassHandsRenderEvent;
 import vesence.event.render.HandAnimationEvent;
 import vesence.event.render.HandOffsetEvent;
 import vesence.event.render.HandShadowRenderEvent;
+import vesence.event.render.ItemTransformEvent;
 import vesence.event.render.RenderItemEvent;
 import vesence.module.impl.movement.FreecamState;
 import vesence.module.impl.visuals.CustomHand;
@@ -154,6 +155,30 @@ public abstract class HeldItemRendererMixin {
       if (scale != 1.0F) {
          matrices.scale(scale, scale, scale);
       }
+   }
+
+   @Inject(
+           method = {"renderFirstPersonItem"},
+           at = {@At(
+                   value = "INVOKE",
+                   target = "Lnet/minecraft/client/render/item/HeldItemRenderer;renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/ItemDisplayContext;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;I)V"
+           )},
+           require = 0
+   )
+   private void itemTransformHook(
+           AbstractClientPlayerEntity player,
+           float tickProgress,
+           float pitch,
+           Hand hand,
+           float swingProgress,
+           ItemStack stack,
+           float equipProgress,
+           MatrixStack matrices,
+           OrderedRenderCommandQueue queue,
+           int light,
+           CallbackInfo ci
+   ) {
+      EventManager.call(new ItemTransformEvent(matrices, stack, hand));
    }
 
    @WrapOperation(

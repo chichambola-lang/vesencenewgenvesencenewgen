@@ -6,6 +6,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline.Snippet;
 import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode;
 import java.awt.Color;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -24,6 +25,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.OverlayTexture;
 import net.minecraft.util.math.RotationAxis;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.client.render.VertexConsumerProvider.Immediate;
 import org.joml.Matrix4f;
@@ -36,6 +38,7 @@ import vesence.module.api.Module;
 import vesence.module.api.setting.Setting;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.ModeSetting;
+import vesence.module.api.setting.impl.SliderSetting;
 import vesence.Vesence;
 import vesence.module.impl.combat.AttackAura;
 import vesence.module.impl.combat.TriggerBot;
@@ -51,19 +54,55 @@ import vesence.utils.render.math.animation.anim.util.Easings;
 @Environment(EnvType.CLIENT)
 public class TargetESP extends Module {
     public static ModeSetting typeTargetEsp = new ModeSetting("Режим", "Картинка", "Картинка", "Призраки", "Призраки 2", "Кольцо",
-            "Кубики", "Кристаллы", "Кристаллы 2", "Кольцо 2");
+            "Кубики", "Кристаллы", "Кольцо 2",
+            "Цепи", "Призрачные орбиты", "Райдер", "Циркуль", "Череп", "Пентограма 1");
     public static BooleanSetting throughWalls = new BooleanSetting("Сквозь стены", false);
-   public static ModeSetting typeImage = new ModeSetting("Режим картинки", "Клиент", "Клиент", "Ромб", "Ромб 2", "Ромб 3")
+    public static BooleanSetting hurtColor = new BooleanSetting("Окрашивание при ударе", true);
+    public static SliderSetting rotateSpeed = new SliderSetting("Скорость вращения", 1.2, 0.2, 4.0, 0.05)
+            .hidden(() -> !typeTargetEsp.is("Картинка"));
+    public static SliderSetting bmwGhostCount = new SliderSetting("Кол-во призраков", 3.0, 2.0, 5.0, 1.0)
+            .hidden(() -> !typeTargetEsp.is("Райдер"));
+    public static SliderSetting bmwGhostLife = new SliderSetting("Время жизни (мс)", 350.0, 150.0, 500.0, 25.0)
+            .hidden(() -> !typeTargetEsp.is("Райдер"));
+    public static SliderSetting bmwStrengthXZ = new SliderSetting("Цикл XZ", 2000.0, 1000.0, 5000.0, 100.0)
+            .hidden(() -> !typeTargetEsp.is("Райдер"));
+    public static SliderSetting bmwStrengthY = new SliderSetting("Цикл Y", 1700.0, 1000.0, 5000.0, 100.0)
+            .hidden(() -> !typeTargetEsp.is("Райдер"));
+    public static SliderSetting pentagramSpeed = new SliderSetting("Скорость пентограмы", 1.0, 0.1, 5.0, 0.1)
+            .hidden(() -> !typeTargetEsp.is("Пентограма 1"));
+    public static SliderSetting ringRadius = new SliderSetting("Радиус кольца", 0.5, 0.3, 1.5, 0.05)
+            .hidden(() -> !typeTargetEsp.is("Кольцо"));
+    public static SliderSetting ringSpeed = new SliderSetting("Скорость кольца", 1.0, 0.3, 3.0, 0.1)
+            .hidden(() -> !typeTargetEsp.is("Кольцо"));
+    public static BooleanSetting hitBubbleEffect = new BooleanSetting("Раскол таргета", false)
+            .hidden(() -> !typeTargetEsp.is("Картинка"));
+    public static ModeSetting hitBubbleColor = new ModeSetting("Цвет пузыря", "Клиент", "Радужный", "Клиент")
+            .hidden(() -> !(typeTargetEsp.is("Картинка") && hitBubbleEffect.get()));
+    public static BooleanSetting hitBubbleVoronoi = new BooleanSetting("Осколки", true)
+            .hidden(() -> !(typeTargetEsp.is("Картинка") && hitBubbleEffect.get()));
+    public static ModeSetting hitBubbleVoronoiPriority = new ModeSetting("Режим осколков", "Сбалансированное",
+            "Производительность", "Сбалансированное", "Множество", "Ультра")
+            .hidden(() -> !(typeTargetEsp.is("Картинка") && hitBubbleEffect.get() && hitBubbleVoronoi.get()));
+   public static ModeSetting typeImage = new ModeSetting("Режим картинки", "Картинка 3", "Картинка 1", "Картинка 2", "Картинка 3", "Картинка 4")
+           .hidden(() -> !typeTargetEsp.is("Картинка"));
+   public static SliderSetting imageSize = new SliderSetting("Размер картинки", 1.15, 0.6, 2.5, 0.05)
            .hidden(() -> !typeTargetEsp.is("Картинка"));
    public static ModeSetting typeCube = new ModeSetting("Режим кубиков", "Новый", "Новый", "Старый")
            .hidden(() -> !typeTargetEsp.is("Кубики"));
-   private static final Identifier TARGET_TEXTURE = Identifier.of("vesence", "textures/world/target.png");
-   private static final Identifier TARGET_TEXTURE_C = Identifier.of("vesence", "images/world/targetesp_2.png");
-   private static final Identifier TARGET_TEXTURE_N = Identifier.of("vesence", "images/world/targetesp_3.png");
-   private static final Identifier TARGET_TEXTURE_V = Identifier.of("vesence", "images/world/cube.png");
    private static final Identifier GLOW_TEXTURE = Identifier.of("vesence", "textures/world/glow.png");
    private static final Identifier GLOW_TEXTURE_C = Identifier.of("vesence", "textures/world/dashbloom.png");
    private static final Identifier CRYSTAL_GLOW_TEXTURE = Identifier.of("vesence", "textures/world/dashbloom.png");
+   private static final Identifier CHAIN_TEXTURE = Identifier.of("vesence", "textures/targetesp/chain.png");
+   private static final Identifier ESP_BLOOM_TEXTURE = Identifier.of("vesence", "textures/targetesp/bloom.png");
+   private static final Identifier PENTAGRAM_CIRCLE_1 = Identifier.of("vesence", "textures/targetesp/circles1.png");
+   private static final Identifier SKULL_0 = Identifier.of("vesence", "textures/targetesp/skull_state_0.png");
+   private static final Identifier SKULL_1 = Identifier.of("vesence", "textures/targetesp/skull_state_1.png");
+   private static final Identifier SKULL_2 = Identifier.of("vesence", "textures/targetesp/skull_state_2.png");
+   private static final float CHAINS_SCALE = 1.30F;
+   private static final Identifier IMAGE_1 = Identifier.of("vesence", "textures/targetesp/targetesp_1.png");
+   private static final Identifier IMAGE_2 = Identifier.of("vesence", "textures/targetesp/targetesp_2.png");
+   private static final Identifier IMAGE_3 = Identifier.of("vesence", "textures/targetesp/targetesp_3.png");
+   private static final Identifier IMAGE_4 = Identifier.of("vesence", "textures/targetesp/targetesp_4.png");
    public static Animation2 alpha = new Animation2();
    public static Animation2 size = new Animation2();
    private LivingEntity lastTarget = null;
@@ -212,29 +251,6 @@ public class TargetESP extends Module {
                     .texture("Sampler0", CRYSTAL_GLOW_TEXTURE)
                     .build());
 
-    private static final RenderPipeline CRYSTAL_TRIANGLES_THROUGH_WALLS_PIPELINE = RenderPipelines.register(
-            RenderPipeline.builder(new Snippet[]{RenderPipelines.POSITION_COLOR_SNIPPET})
-                    .withLocation(Identifier.of("vesence", "pipeline/world/crystal_triangles_through_walls"))
-                    .withVertexFormat(VertexFormats.POSITION_COLOR, DrawMode.TRIANGLES)
-                    .withCull(false)
-                    .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                    .withDepthWrite(false)
-                    .withBlend(BlendFunction.LIGHTNING)
-                    .build());
-    private static final RenderLayer CRYSTAL_TRIANGLES_THROUGH_WALLS_LAYER = RenderLayer.of(
-            "vesence_crystal_triangles_through_walls",
-            RenderSetup.builder(CRYSTAL_TRIANGLES_THROUGH_WALLS_PIPELINE)
-                    .expectedBufferSize(16384)
-                    .translucent()
-                    .build());
-    private static final RenderLayer CRYSTAL_GLOW_THROUGH_WALLS_LAYER = RenderLayer.of(
-            "vesence_crystal_glow_through_walls",
-            RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE)
-                    .expectedBufferSize(4096)
-                    .translucent()
-                    .texture("Sampler0", CRYSTAL_GLOW_TEXTURE)
-                    .build());
-
     private static final RenderLayer RING2_GLOW_LAYER = RenderLayer.of(
            "vesence_ring2_glow",
            RenderSetup.builder(TEXTURED_QUADS_PIPELINE)
@@ -242,18 +258,6 @@ public class TargetESP extends Module {
                    .translucent()
                    .texture("Sampler0", GLOW_TEXTURE_C)
                    .build());
-   private static final RenderLayer TARGET_TEXTURE_LAYER = RenderLayer.of(
-           TARGET_TEXTURE.toString(),
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", TARGET_TEXTURE).build());
-   private static final RenderLayer TARGET_TEXTURE_N_LAYER = RenderLayer.of(
-           TARGET_TEXTURE_N.toString(),
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", TARGET_TEXTURE_N).build());
-   private static final RenderLayer TARGET_TEXTURE_C_LAYER = RenderLayer.of(
-           TARGET_TEXTURE_C.toString(),
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", TARGET_TEXTURE_C).build());
-   private static final RenderLayer TARGET_TEXTURE_V_LAYER = RenderLayer.of(
-           TARGET_TEXTURE_V.toString(),
-           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", TARGET_TEXTURE_V).build());
    private static final RenderLayer GLOW_NO_DEPTH_LAYER = RenderLayer.of(
            GLOW_TEXTURE_C.toString(),
            RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent().texture("Sampler0", GLOW_TEXTURE_C).build());
@@ -272,19 +276,206 @@ public class TargetESP extends Module {
                    .texture("Sampler0", GLOW_TEXTURE_C)
                    .build());
 
+   private static final RenderLayer CHAIN_LAYER = RenderLayer.of(
+           "vesence_targetesp_chain",
+           RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(8192).translucent()
+                   .texture("Sampler0", CHAIN_TEXTURE).build());
+   private static final RenderLayer PENTAGRAM_CIRCLE_LAYER = RenderLayer.of(
+           "vesence_targetesp_pentagram",
+           RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(16384).translucent()
+                   .texture("Sampler0", PENTAGRAM_CIRCLE_1).build());
+   private static final RenderLayer ESP_BLOOM_LAYER = RenderLayer.of(
+           "vesence_targetesp_bloom",
+           RenderSetup.builder(TEXTURED_QUADS_PIPELINE).expectedBufferSize(16384).translucent()
+                   .texture("Sampler0", ESP_BLOOM_TEXTURE).build());
+   private static final RenderLayer ESP_BLOOM_NO_DEPTH_LAYER = RenderLayer.of(
+           "vesence_targetesp_bloom_nodepth",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(16384).translucent()
+                   .texture("Sampler0", ESP_BLOOM_TEXTURE).build());
+   private static final RenderLayer SKULL_0_LAYER = RenderLayer.of(
+           "vesence_targetesp_skull0",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", SKULL_0).build());
+   private static final RenderLayer SKULL_1_LAYER = RenderLayer.of(
+           "vesence_targetesp_skull1",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", SKULL_1).build());
+   private static final RenderLayer SKULL_2_LAYER = RenderLayer.of(
+           "vesence_targetesp_skull2",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", SKULL_2).build());
+
+   private RenderLayer skullLayer(int state) {
+      return state == 0 ? SKULL_0_LAYER : (state == 1 ? SKULL_1_LAYER : SKULL_2_LAYER);
+   }
+
+   private static final RenderLayer IMAGE_1_LAYER = RenderLayer.of(           "vesence_targetesp_img1",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", IMAGE_1).build());
+   private static final RenderLayer IMAGE_2_LAYER = RenderLayer.of(
+           "vesence_targetesp_img2",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", IMAGE_2).build());
+   private static final RenderLayer IMAGE_3_LAYER = RenderLayer.of(
+           "vesence_targetesp_img3",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", IMAGE_3).build());
+   private static final RenderLayer IMAGE_4_LAYER = RenderLayer.of(
+           "vesence_targetesp_img4",
+           RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(1024).translucent()
+                   .texture("Sampler0", IMAGE_4).build());
+
+   private RenderLayer imageLayer() {
+      if (typeImage.is("Картинка 1")) return IMAGE_1_LAYER;
+      if (typeImage.is("Картинка 2")) return IMAGE_2_LAYER;
+      if (typeImage.is("Картинка 4")) return IMAGE_4_LAYER;
+      return IMAGE_3_LAYER;
+   }
+
+   private Identifier imageTexture() {
+      if (typeImage.is("Картинка 1")) return IMAGE_1;
+      if (typeImage.is("Картинка 2")) return IMAGE_2;
+      if (typeImage.is("Картинка 4")) return IMAGE_4;
+      return IMAGE_3;
+   }
+
+   // Заливка осколков: additive-блендинг (LIGHTNING = SRC_ALPHA, ONE) как в
+   // оригинале harmony. Это даёт яркие светящиеся осколки картинки таргета.
+   private static final RenderPipeline HITBUBBLE_FILL_PIPELINE = RenderPipelines.register(
+           RenderPipeline.builder(new Snippet[] { RenderPipelines.POSITION_TEX_COLOR_SNIPPET })
+                   .withLocation(Identifier.of("vesence", "pipeline/world/hitbubble_fill"))
+                   .withVertexFormat(VertexFormats.POSITION_TEXTURE_COLOR, DrawMode.QUADS)
+                   .withCull(false)
+                   .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                   .withDepthWrite(false)
+                   .withBlend(BlendFunction.LIGHTNING)
+                   .build());
+
+   private static RenderLayer hitBubbleQuadLayer(Identifier tex) {
+      return RenderLayer.of("vesence_hitbubble_quad_" + tex.getPath(),
+              RenderSetup.builder(TEXTURED_QUADS_NO_DEPTH_ADDITIVE_PIPELINE).expectedBufferSize(4096).translucent()
+                      .texture("Sampler0", tex).build());
+   }
+   private static RenderLayer hitBubbleFillLayer(Identifier tex) {
+      // Заливка осколков через additive QUADS-пайплайн — яркие цветные текстурные
+      // осколки картинки таргета (полный порт harmony: GL_SRC_ALPHA, GL_ONE).
+      return RenderLayer.of("vesence_hitbubble_fill_" + tex.getPath(),
+              RenderSetup.builder(HITBUBBLE_FILL_PIPELINE).expectedBufferSize(262144).translucent()
+                      .texture("Sampler0", tex).build());
+   }
+   private static final RenderLayer IMG1_BUBBLE_QUAD = hitBubbleQuadLayer(IMAGE_1);
+   private static final RenderLayer IMG2_BUBBLE_QUAD = hitBubbleQuadLayer(IMAGE_2);
+   private static final RenderLayer IMG3_BUBBLE_QUAD = hitBubbleQuadLayer(IMAGE_3);
+   private static final RenderLayer IMG4_BUBBLE_QUAD = hitBubbleQuadLayer(IMAGE_4);
+   private static final RenderLayer IMG1_BUBBLE_FILL = hitBubbleFillLayer(IMAGE_1);
+   private static final RenderLayer IMG2_BUBBLE_FILL = hitBubbleFillLayer(IMAGE_2);
+   private static final RenderLayer IMG3_BUBBLE_FILL = hitBubbleFillLayer(IMAGE_3);
+   private static final RenderLayer IMG4_BUBBLE_FILL = hitBubbleFillLayer(IMAGE_4);
+
+   private RenderLayer bubbleQuadLayer() {
+      if (typeImage.is("Картинка 1")) return IMG1_BUBBLE_QUAD;
+      if (typeImage.is("Картинка 2")) return IMG2_BUBBLE_QUAD;
+      if (typeImage.is("Картинка 4")) return IMG4_BUBBLE_QUAD;
+      return IMG3_BUBBLE_QUAD;
+   }
+   private RenderLayer bubbleFillLayer() {
+      if (typeImage.is("Картинка 1")) return IMG1_BUBBLE_FILL;
+      if (typeImage.is("Картинка 2")) return IMG2_BUBBLE_FILL;
+      if (typeImage.is("Картинка 4")) return IMG4_BUBBLE_FILL;
+      return IMG3_BUBBLE_FILL;
+   }
+
+   private float appearValue = 0.0F;
+   private float renderPartialTicks = 0.0F;
+   private LivingEntity lastHandledTarget = null;
+   private Vec3d lastTargetPos = null;
+   private float lastTargetHeight = 1.8F;
+   private float lastTargetWidth = 0.6F;
+
+   private final java.util.concurrent.CopyOnWriteArrayList<GlowPoint> bmwPoints = new java.util.concurrent.CopyOnWriteArrayList<>();
+
+   private static final int ORBIT_PARTICLE_COUNT = 3;
+   private static final float ORBIT_BASE_RADIUS = 0.4F;
+   private static final float ORBIT_BASE_MUL = 0.1F;
+   private static final float ORBIT_SPEED = 15.0F;
+   private static final int ORBIT_TRAIL_LENGTH = 40;
+   private static final float[] ORBIT_SCALE_CACHE = new float[101];
+   static {
+      for (int k = 0; k <= 100; k++) {
+         ORBIT_SCALE_CACHE[k] = Math.max(0.28F * (k / 100.0F), 0.15F);
+      }
+   }
+   private final Vec3d[] orbitPositions = new Vec3d[ORBIT_PARTICLE_COUNT];
+   private final Vec3d[] orbitMotions = new Vec3d[ORBIT_PARTICLE_COUNT];
+   @SuppressWarnings("unchecked")
+   private final java.util.List<Vec3d>[] orbitTrails = new java.util.List[ORBIT_PARTICLE_COUNT];
+   private float orbitMovingAngle = 0.0F;
+   private long orbitLastTime = 0L;
+   private float orbitShrinkValue = 0.0F;
+   private LivingEntity orbitLastTarget = null;
+
+   private float compassValue23 = 0.0F;
+   private long compassTimestamp4 = System.currentTimeMillis();
+   private long compassTimestamp5 = System.nanoTime();
+
+   private final ArrayList<PentParticle> pentagramParticles = new ArrayList<>();
+   private final ArrayDeque<PentParticle> pentagramPool = new ArrayDeque<>();
+   private long lastPentagramParticleTime = 0L;
+   private static final int MAX_PENTAGRAM_PARTICLES = 120;
+   private static final float PENTAGRAM_PARTICLE_SPAWN_INTERVAL_MS = 35.0F;
+
+   private long lastSkullTime = 0L;
+   private float skullFadeProgress = 1.0F;
+   private int skullCurrentState = -1;
+   private int skullNextState = -1;
+   private long skullShakeStart = 0L;
+
+   private final vesence.utils.render.HitBubbleEffect hitBubbleShatter = new vesence.utils.render.HitBubbleEffect();
+   private boolean hitBubbleShatterEmitted = false;
+   private Vec3d hitBubbleLastMarkerPos = null;
+
+   private float scaleValue = 0.0F;
+   private float rotProgress = 0.0F;
+   private float rotFrom = -280.0F;
+   private float rotTo = 280.0F;
+   private long lastRotateUpdate = System.currentTimeMillis();
+
    public TargetESP() {
-      this.addSettings(new Setting[] { typeTargetEsp, typeImage, typeCube, throughWalls });
+      this.addSettings(new Setting[] { typeTargetEsp, typeImage, imageSize, typeCube, throughWalls,
+            hurtColor, rotateSpeed, ringRadius, ringSpeed, bmwGhostCount, bmwGhostLife, bmwStrengthXZ, bmwStrengthY, pentagramSpeed,
+            hitBubbleEffect, hitBubbleColor, hitBubbleVoronoi, hitBubbleVoronoiPriority });
+      for (int i = 0; i < ORBIT_PARTICLE_COUNT; i++) {
+         this.orbitTrails[i] = new ArrayList<>();
+         this.orbitMotions[i] = Vec3d.ZERO;
+      }
    }
 
    @EventInit
    public void onRender(EventRender3D e) {
       alpha.update();
+      this.renderPartialTicks = e.getTickDelta();
       LivingEntity target = AttackAura.target != null ? AttackAura.target : TriggerBot.target;
       if (mc.world != null && mc.player != null) {
          AttackAura hitAura = (AttackAura) Vesence.get.manager.getModule(AttackAura.class);
          TriggerBot triggerBot = (TriggerBot) Vesence.get.manager.getModule(TriggerBot.class);
          if (hitAura != null || triggerBot != null) {
+            boolean hasTargetNow = target != null && target.isAlive();
+            this.appearValue = this.animateTo(this.appearValue, hasTargetNow ? 1.0F : 0.0F, 0.05F);
+            this.scaleValue = this.animateTo(this.scaleValue, hasTargetNow ? 1.0F : 0.5F, 0.05F);
+            if (hasTargetNow) {
+               this.lastHandledTarget = target;
+               float td = e.getTickDelta();
+               this.lastTargetPos = new Vec3d(
+                  MathHelper.lerp(td, target.lastRenderX, target.getX()),
+                  MathHelper.lerp(td, target.lastRenderY, target.getY()),
+                  MathHelper.lerp(td, target.lastRenderZ, target.getZ()));
+               this.lastTargetHeight = target.getHeight();
+               this.lastTargetWidth = target.getWidth();
+            }
             alpha.run(target == null ? 0.0 : 1.0, 0.35F, Easings.QUART_OUT);
+
+            this.tickHitBubbleEffect(hasTargetNow);
+            this.renderHitBubbleShatter(e);
             if (alpha.getValue() > 0.0) {
                if (target != null) {
                   if (this.lastTarget != target) {
@@ -302,19 +493,8 @@ public class TargetESP extends Module {
                   Immediate immediate = VertexConsumerProvider.immediate(allocator);
 
                   try {
-                     if (typeTargetEsp.is("Картинка") && typeImage.is("Ромб")) {
-                        this.renderDiamond(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
-                     }
-
-                     if (typeTargetEsp.is("Картинка") && typeImage.is("Клиент")) {
-                        this.renderDiamondNewStyle(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
-                     }
-
-                     if (typeTargetEsp.is("Картинка") && typeImage.is("Ромб 2")) {
-                        this.renderDiamondNewStyle2(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
-                     }
-                     if (typeTargetEsp.is("Картинка") && typeImage.is("Ромб 3")) {
-                        this.renderDiamondNewStyle3(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
+                     if (typeTargetEsp.is("Картинка")) {
+                        this.renderMarker3D(e, immediate, this.lastTarget, hasTargetNow);
                      }
 
                      if (typeTargetEsp.is("Призраки")) {
@@ -341,12 +521,35 @@ public class TargetESP extends Module {
                          this.renderCrystals(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
                       }
 
-                      if (typeTargetEsp.is("Кристаллы 2")) {
-                         this.renderCrystals2(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
-                      }
-
                       if (typeTargetEsp.is("Кольцо 2")) {
                         this.renderRing2(e.getMatrixStack(), immediate, this.lastTarget, e.getTickDelta());
+                     }
+
+                     LivingEntity portTarget = hasTargetNow ? target : this.lastTarget;
+                     if (typeTargetEsp.is("Цепи")) {
+                        this.drawChainsV2(e, immediate, portTarget);
+                     }
+                     if (typeTargetEsp.is("Призрачные орбиты")) {
+                        this.drawGhostOrbits3D(e, immediate, portTarget);
+                     }
+                     if (typeTargetEsp.is("Райдер")) {
+                        if (hasTargetNow && target != null) {
+                           this.addBMWGhosts(target,
+                                 Math.max(1, Math.round((float) (double) bmwGhostCount.get())),
+                                 Math.max(1, Math.round((float) (double) bmwGhostLife.get())),
+                                 this.getESPColor());
+                        }
+                        this.bmwPoints.removeIf(GlowPoint::shouldRemove);
+                        this.drawBMW3D(e, immediate);
+                     }
+                     if (typeTargetEsp.is("Циркуль")) {
+                        this.drawCompass3D(e, immediate, portTarget);
+                     }
+                     if (typeTargetEsp.is("Череп")) {
+                        this.drawSkull3D(e, immediate, portTarget);
+                     }
+                     if (typeTargetEsp.is("Пентограма 1")) {
+                        this.renderPentagram3D(e, immediate, portTarget);
                      }
 
                      immediate.draw();
@@ -361,151 +564,30 @@ public class TargetESP extends Module {
                this.animationNurik = 0.0F;
                this.spiritsRingLastTime = 0L;
                this.spiritsRingAngle = 0.0F;
+               this.appearValue = 0.0F;
+               this.lastTargetPos = null;
+               this.lastHandledTarget = null;
+               this.bmwPoints.clear();
+               for (int i = 0; i < ORBIT_PARTICLE_COUNT; i++) {
+                  this.orbitPositions[i] = null;
+                  this.orbitMotions[i] = Vec3d.ZERO;
+                  if (this.orbitTrails[i] != null) this.orbitTrails[i].clear();
+               }
+               this.orbitMovingAngle = 0.0F;
+               this.orbitLastTime = 0L;
+               this.orbitShrinkValue = 0.0F;
+               this.orbitLastTarget = null;
+               this.compassValue23 = 0.0F;
+               this.pentagramParticles.clear();
+               this.lastPentagramParticleTime = 0L;
+               this.lastSkullTime = 0L;
+               this.skullFadeProgress = 1.0F;
+               this.skullCurrentState = -1;
+               this.skullNextState = -1;
+               this.skullShakeStart = 0L;
             }
          }
       }
-   }
-
-   private void renderDiamond(MatrixStack matrices, Immediate immediate, LivingEntity target, float partialTicks) {
-      Vec3d lerpedPos = target.getLerpedPos(partialTicks);
-      double x = lerpedPos.x;
-      double y = lerpedPos.y;
-      double z = lerpedPos.z;
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      matrices.push();
-      matrices.translate(x - cameraPos.x, y - cameraPos.y + target.getHeight() / 1.75F, z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
-      long currentTimeMillis = System.currentTimeMillis();
-      float rotate = (float) Mathf.clamp(0.0, 720.0, (Math.sin(currentTimeMillis / 900.0) + 1.0) / 2.0 * 360.0 * 2.0);
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotate));
-      TargetESP.size.update();
-      int hurtTicks = target.hurtTime;
-      float hurtPC = (float) Math.sin(hurtTicks * (Math.PI / 20));
-      TargetESP.size.run(hurtPC, 0.4F, Easings.QUART_OUT);
-      float rzs = TargetESP.size.get();
-      float sizePC = (float) alpha.getValue();
-      int redColor = ColorUtil.getColor(200, 70, 70, (int) (255.0F * sizePC));
-      int colorS = ColorUtil.overCol(ColorUtil.multAlpha(ColorUtil.fade(), sizePC), redColor, TargetESP.size.get());
-      float size = 1.7F - 0.9F * sizePC + (0.35F - 0.35F * rzs);
-      matrices.scale(size, size, 1.0F);
-      Matrix4f bloomMatrix = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuffer = immediate.getBuffer(TARGET_TEXTURE_LAYER);
-      drawGradientQuad(bloomBuffer, bloomMatrix, colorS, (int) (255.0F * sizePC));
-      matrices.push();
-      matrices.scale(2.0F, 2.0F, 1.0F);
-      Matrix4f bloomMat = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuf = immediate.getBuffer(GLOW_NO_DEPTH_LAYER);
-      drawGradientQuad(bloomBuf, bloomMat, colorS, (int) (255.0F * sizePC * 0.4F));
-      matrices.pop();
-      matrices.pop();
-   }
-
-   private void renderDiamondNewStyle(MatrixStack matrices, Immediate immediate, LivingEntity target,
-                                      float partialTicks) {
-      Vec3d lerpedPos = target.getLerpedPos(partialTicks);
-      double x = lerpedPos.x;
-      double y = lerpedPos.y;
-      double z = lerpedPos.z;
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      matrices.push();
-      matrices.translate(x - cameraPos.x, y - cameraPos.y + target.getHeight() / 1.75F, z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
-      long currentTimeMillis = System.currentTimeMillis();
-      float rotate = (float) Mathf.clamp(0.0, 720.0, (Math.sin(currentTimeMillis / 1600.0) + 1.0) / 2.0 * 360.0 * 2.0);
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotate));
-      TargetESP.size.update();
-      int hurtTicks = target.hurtTime;
-      float hurtPC = (float) Math.sin(hurtTicks * (Math.PI / 20));
-      TargetESP.size.run(hurtPC, 0.4F, Easings.QUART_OUT);
-      float rzs = TargetESP.size.get();
-      float sizePC = (float) alpha.getValue();
-      int redColor = ColorUtil.getColor(200, 70, 70, (int) (255.0F * sizePC));
-      int colorS = ColorUtil.overCol(ColorUtil.multAlpha(ColorUtil.fade(), sizePC), redColor, TargetESP.size.get());
-      float size = 1.5F - 0.9F * sizePC + (0.35F - 0.35F * rzs);
-      matrices.scale(size, size, 1.0F);
-      Matrix4f bloomMatrix = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuffer = immediate.getBuffer(TARGET_TEXTURE_N_LAYER);
-      drawGradientQuad(bloomBuffer, bloomMatrix, colorS, (int) (255.0F * sizePC));
-      matrices.push();
-      matrices.scale(2.0F, 2.0F, 1.0F);
-      Matrix4f bloomMat = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuf = immediate.getBuffer(GLOW_NO_DEPTH_LAYER);
-      drawGradientQuad(bloomBuf, bloomMat, colorS, (int) (255.0F * sizePC * 0.4F));
-      matrices.pop();
-      matrices.pop();
-   }
-
-   private void renderDiamondNewStyle2(MatrixStack matrices, Immediate immediate, LivingEntity target,
-                                       float partialTicks) {
-      Vec3d lerpedPos = target.getLerpedPos(partialTicks);
-      double x = lerpedPos.x;
-      double y = lerpedPos.y;
-      double z = lerpedPos.z;
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      matrices.push();
-      matrices.translate(x - cameraPos.x, y - cameraPos.y + target.getHeight() / 1.75F, z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
-      long currentTimeMillis = System.currentTimeMillis();
-      float rotate = (float) Mathf.clamp(0.0, 720.0, (Math.sin(currentTimeMillis / 1000.0) + 1.0) / 2.0 * 360.0 * 2.0);
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotate));
-      TargetESP.size.update();
-      int hurtTicks = target.hurtTime;
-      float hurtPC = (float) Math.sin(hurtTicks * (Math.PI / 20));
-      TargetESP.size.run(hurtPC, 0.4F, Easings.QUART_OUT);
-      float rzs = TargetESP.size.get();
-      float sizePC = (float) alpha.getValue();
-      int redColor = ColorUtil.getColor(200, 70, 70, (int) (255.0F * sizePC));
-      int colorS = ColorUtil.overCol(ColorUtil.multAlpha(ColorUtil.fade(), sizePC), redColor, TargetESP.size.get());
-      float size = 1.25F - 0.6F * sizePC + (0.35F - 0.35F * rzs);
-      matrices.scale(size, size, 1.0F);
-      Matrix4f bloomMatrix = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuffer = immediate.getBuffer(TARGET_TEXTURE_C_LAYER);
-      drawGradientQuad(bloomBuffer, bloomMatrix, colorS, (int) (255.0F * sizePC));
-      matrices.push();
-      matrices.scale(2.0F, 2.0F, 1.0F);
-      Matrix4f bloomMat = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuf = immediate.getBuffer(GLOW_NO_DEPTH_LAYER);
-      drawGradientQuad(bloomBuf, bloomMat, colorS, (int) (255.0F * sizePC * 0.4F));
-      matrices.pop();
-      matrices.pop();
-   }
-   private void renderDiamondNewStyle3(MatrixStack matrices, Immediate immediate, LivingEntity target,
-                                       float partialTicks) {
-      Vec3d lerpedPos = target.getLerpedPos(partialTicks);
-      double x = lerpedPos.x;
-      double y = lerpedPos.y;
-      double z = lerpedPos.z;
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      matrices.push();
-      matrices.translate(x - cameraPos.x, y - cameraPos.y + target.getHeight() / 1.75F, z - cameraPos.z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
-      long currentTimeMillis = System.currentTimeMillis();
-      float rotate = (float) Mathf.clamp(0.0, 720.0, (Math.sin(currentTimeMillis / 1000.0) + 1.0) / 2.0 * 360.0 * 2.0);
-      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotate));
-      TargetESP.size.update();
-      int hurtTicks = target.hurtTime;
-      float hurtPC = (float) Math.sin(hurtTicks * (Math.PI / 20));
-      TargetESP.size.run(hurtPC, 0.4F, Easings.QUART_OUT);
-      float rzs = TargetESP.size.get();
-      float sizePC = (float) alpha.getValue();
-      int redColor = ColorUtil.getColor(200, 70, 70, (int) (255.0F * sizePC));
-      int colorS = ColorUtil.overCol(ColorUtil.multAlpha(ColorUtil.fade(), sizePC), redColor, TargetESP.size.get());
-      float size = 1.25F - 0.6F * sizePC + (0.35F - 0.35F * rzs);
-      matrices.scale(size, size, 1.0F);
-      Matrix4f bloomMatrix = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuffer = immediate.getBuffer(TARGET_TEXTURE_V_LAYER);
-      drawGradientQuad(bloomBuffer, bloomMatrix, colorS, (int) (255.0F * sizePC));
-      matrices.push();
-      matrices.scale(2.0F, 2.0F, 1.0F);
-      Matrix4f bloomMat = matrices.peek().getPositionMatrix();
-      VertexConsumer bloomBuf = immediate.getBuffer(GLOW_NO_DEPTH_LAYER);
-      drawGradientQuad(bloomBuf, bloomMat, colorS, (int) (255.0F * sizePC * 0.4F));
-      matrices.pop();
-      matrices.pop();
    }
 
    private void renderRing(MatrixStack matrices, Immediate immediate, LivingEntity target, float partialTicks) {
@@ -518,14 +600,14 @@ public class TargetESP extends Module {
          matrices.translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
          float alphaPC = (float) alpha.getValue();
          float height = target.getHeight();
-         double width = target.getWidth() * 1.0F - 0.2F * size.get();
+         double width = ringRadius.get();
          int redColor = ColorUtil.getColor(200, 70, 70, (int) (255.0F * alphaPC));
          size.update();
          int hurtTicks = target.hurtTime;
          float hurtPC = (float) Math.sin(hurtTicks * (Math.PI / 20));
          size.run(hurtPC, 0.4F, Easings.QUART_OUT);
          Matrix4f matrix = matrices.peek().getPositionMatrix();
-         double duration = 1800.0;
+         double duration = 2000.0 / ringSpeed.get();
          double elapsed = System.currentTimeMillis() % duration;
          double t = elapsed / duration;
          double progress = 0.5 + 0.5 * Math.sin(t * 2.0 * Math.PI - Math.PI / 2.0);
@@ -1164,125 +1246,6 @@ public class TargetESP extends Module {
       matrices.pop();
    }
 
-   private void renderCrystals2(MatrixStack matrices, Immediate immediate, LivingEntity target, float tickDelta) {
-      if (target == null) return;
-
-      float alphaPC = (float) alpha.getValue();
-      if (alphaPC <= 0.01F) return;
-
-      float easedAnim = easeOutCubic(alphaPC);
-
-      Vec3d targetPos = target.getLerpedPos(tickDelta);
-      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
-      Vec3d renderPos = targetPos.subtract(cameraPos);
-
-      float time = (mc.player.age + tickDelta) * 6.0F;
-      float entityHeight = target.getHeight();
-      float entityWidth = target.getWidth();
-      float halfWidth = entityWidth * 0.5F;
-
-      matrices.push();
-      matrices.translate(renderPos.x, renderPos.y, renderPos.z);
-
-      Camera camera = mc.gameRenderer.getCamera();
-      boolean noDepth = throughWalls.get();
-      VertexConsumer glowBuffer = immediate.getBuffer(noDepth ? CRYSTAL_GLOW_THROUGH_WALLS_LAYER : CRYSTAL_GLOW_LAYER);
-
-      int baseColor = ColorUtil.fade();
-      int crystalCount = 14;
-      for (int i = 0; i < crystalCount; i++) {
-         float seed1 = (float) Math.sin(i * 1.7F + 0.3F) * 0.5F + 0.5F;
-         float seed2 = (float) Math.cos(i * 2.3F + 0.7F) * 0.5F + 0.5F;
-         float seed3 = (float) Math.sin(i * 3.1F + 1.1F) * 0.5F + 0.5F;
-
-         float angleOffset = i * (360F / crystalCount) + seed1 * 12F;
-         float angle = time + angleOffset;
-         float radius = halfWidth + 0.25F + seed3 * 0.15F;
-
-         float x = radius * (float) Math.cos(Math.toRadians(angle));
-         float z = radius * (float) Math.sin(Math.toRadians(angle));
-         float y = seed2 * entityHeight;
-
-         float crystalScale = 0.18F * easedAnim;
-
-         drawCrystalB2(glowBuffer, matrices, camera, x, y, z, crystalScale * 3.6F, baseColor, alphaPC * 0.3F);
-      }
-
-      VertexConsumer geomBuffer = immediate.getBuffer(noDepth ? CRYSTAL_TRIANGLES_THROUGH_WALLS_LAYER : CRYSTAL_TRIANGLES_LAYER);
-
-      for (int i = 0; i < crystalCount; i++) {
-         float seed1 = (float) Math.sin(i * 1.7F + 0.3F) * 0.5F + 0.5F;
-         float seed2 = (float) Math.cos(i * 2.3F + 0.7F) * 0.5F + 0.5F;
-         float seed3 = (float) Math.sin(i * 3.1F + 1.1F) * 0.5F + 0.5F;
-
-         float angleOffset = i * (360F / crystalCount) + seed1 * 12F;
-         float angle = time + angleOffset;
-         float radius = halfWidth + 0.25F + seed3 * 0.15F;
-
-         float x = radius * (float) Math.cos(Math.toRadians(angle));
-         float z = radius * (float) Math.sin(Math.toRadians(angle));
-         float y = seed2 * entityHeight;
-
-         float crystalScale = 0.18F * easedAnim;
-
-         drawCrystalH2(geomBuffer, matrices, x, y, z, crystalScale, angle, baseColor, alphaPC * 0.7F);
-      }
-
-      matrices.pop();
-   }
-
-   private void drawCrystalB2(VertexConsumer buffer, MatrixStack matrices, Camera camera,
-                               float x, float y, float z, float size, int color, float alpha) {
-      matrices.push();
-      matrices.translate(x, y, z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camera.getYaw()));
-      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camera.getPitch()));
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
-
-      int glowColor = ColorUtil.multAlpha(color, alpha);
-      drawGradientQuad(buffer, matrix, glowColor, (glowColor >> 24) & 0xFF);
-
-      matrices.pop();
-   }
-
-   private void drawCrystalH2(VertexConsumer buffer, MatrixStack matrices,
-                               float x, float y, float z, float scale,
-                               float yaw, int color, float alpha) {
-      matrices.push();
-      matrices.translate(x, y, z);
-      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-yaw + 90F));
-      matrices.scale(scale, scale, scale);
-      Matrix4f matrix = matrices.peek().getPositionMatrix();
-
-      int r = (color >> 16) & 0xFF;
-      int g = (color >> 8) & 0xFF;
-      int b = color & 0xFF;
-      int a = (int) (180 * alpha);
-
-      int rL = Math.min(255, (int)(r * 1.3F));
-      int gL = Math.min(255, (int)(g * 1.3F));
-      int bL = Math.min(255, (int)(b * 1.3F));
-
-      int rD = (int)(r * 0.6F);
-      int gD = (int)(g * 0.6F);
-      int bD = (int)(b * 0.6F);
-
-      float w = 0.5F;
-      float h = 1.0F;
-
-      drawCrystalTriangle(buffer, matrix, 0, 0, h, -w, 0, 0, 0, w, 0, rL, gL, bL, a);
-      drawCrystalTriangle(buffer, matrix, 0, 0, h, 0, w, 0, w, 0, 0, rL, gL, bL, a);
-      drawCrystalTriangle(buffer, matrix, 0, 0, h, w, 0, 0, 0, -w, 0, r, g, b, a);
-      drawCrystalTriangle(buffer, matrix, 0, 0, h, 0, -w, 0, -w, 0, 0, r, g, b, a);
-
-      drawCrystalTriangle(buffer, matrix, 0, 0, -h, 0, w, 0, -w, 0, 0, rD, gD, bD, a);
-      drawCrystalTriangle(buffer, matrix, 0, 0, -h, w, 0, 0, 0, w, 0, rD, gD, bD, a);
-      drawCrystalTriangle(buffer, matrix, 0, 0, -h, 0, -w, 0, w, 0, 0, rD, gD, bD, a);
-      drawCrystalTriangle(buffer, matrix, 0, 0, -h, -w, 0, 0, 0, -w, 0, rD, gD, bD, a);
-
-      matrices.pop();
-   }
-
    private void drawCrystalTriangle(VertexConsumer buffer, Matrix4f matrix,
                                      float x1, float y1, float z1,
                                      float x2, float y2, float z2,
@@ -1473,6 +1436,941 @@ public class TargetESP extends Module {
 
    private int blendWithHurt(int baseColor, int hurtColor, float hurtBlend) {
       return hurtBlend <= 0.0F ? baseColor : ColorUtil.overCol(baseColor, hurtColor, hurtBlend);
+   }
+
+   private float animateTo(float current, float target, float delta) {
+      if (current < target) {
+         current = Math.min(current + delta, target);
+      } else if (current > target) {
+         current = Math.max(current - delta, target);
+      }
+      return current;
+   }
+
+   private float getDistanceScale(Vec3d cameraPos, double worldX, double worldY, double worldZ) {
+      double dx = worldX - cameraPos.x;
+      double dy = worldY - cameraPos.y;
+      double dz = worldZ - cameraPos.z;
+      double distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (!Double.isFinite(distance)) return 0.1F;
+      return (float) MathHelper.clamp(distance * 0.007, 0.1, 0.35);
+   }
+
+   private int getESPColor() {
+      int color = ColorUtil.fade();
+      if ((color >> 24 & 0xFF) == 0) {
+         color |= 0xFF000000;
+      }
+      return color;
+   }
+
+   private int getFlowColor(int index) {
+      int c1 = ColorUtil.fade();
+      int c2 = ColorUtil.multDark(c1, 0.45F);
+      int rgb = ColorUtil.fadeBetween(12.0F, index, c1, c2);
+      return 0xFF000000 | (rgb & 0xFFFFFF);
+   }
+
+   private float getHurtPC(LivingEntity target) {
+      if (hurtColor.get() && target != null) {
+         float partialTicks = this.renderPartialTicks;
+         float hurtTicks = MathHelper.clamp(target.hurtTime - partialTicks, 0.0F, 10.0F);
+         float progress = hurtTicks / 10.0F;
+         return progress * progress * (3.0F - 2.0F * progress);
+      }
+      return 0.0F;
+   }
+
+   private void drawBillboard(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+         double worldX, double worldY, double worldZ, float baseScreenSize, int color, float rotation) {
+      float distScale = this.getDistanceScale(cameraPos, worldX, worldY, worldZ);
+      float half = baseScreenSize * distScale * 0.5F;
+      this.drawBillboardInternal(buffer, matrices, cameraPos, worldX, worldY, worldZ, half, color, rotation);
+   }
+
+   private void drawBillboardInternal(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+         double worldX, double worldY, double worldZ, float half, int color, float rotation) {
+      int r = color >> 16 & 0xFF;
+      int g = color >> 8 & 0xFF;
+      int b = color & 0xFF;
+      int a = color >> 24 & 0xFF;
+      if (a <= 0) return;
+      if (!Float.isFinite(half) || half <= 0.0F || half > 5.0F) return;
+
+      matrices.push();
+      matrices.translate(worldX - cameraPos.x, worldY - cameraPos.y, worldZ - cameraPos.z);
+      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
+      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+      if (rotation != 0.0F) {
+         matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
+      }
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      texVertex(buffer, matrix, -half, -half, 0.0F, 0.0F, 1.0F, r, g, b, a);
+      texVertex(buffer, matrix, -half, half, 0.0F, 0.0F, 0.0F, r, g, b, a);
+      texVertex(buffer, matrix, half, half, 0.0F, 1.0F, 0.0F, r, g, b, a);
+      texVertex(buffer, matrix, half, -half, 0.0F, 1.0F, 1.0F, r, g, b, a);
+      matrices.pop();
+   }
+
+   private static void texVertex(VertexConsumer buffer, Matrix4f matrix, float x, float y, float z,
+         float u, float v, int r, int g, int b, int a) {
+      buffer.vertex(matrix, x, y, z)
+            .color(r, g, b, a)
+            .texture(u, v)
+            .overlay(OverlayTexture.DEFAULT_UV)
+            .light(15728880)
+            .normal(0.0F, 0.0F, 1.0F);
+   }
+
+   private void renderMarker3D(EventRender3D event, Immediate immediate, LivingEntity target, boolean hasTarget) {
+      this.markerImmediate = immediate;
+      if (this.lastTargetPos == null || this.appearValue <= 0.001F) return;
+      if (this.lastTarget != null && (!this.lastTarget.isAlive() || this.lastTarget.isRemoved())) {
+         this.appearValue = Math.max(0.0F, this.appearValue - 0.08F);
+         if (this.appearValue <= 0.001F) return;
+      }
+
+      Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
+      double worldX = this.lastTargetPos.x;
+      double worldY = this.lastTargetPos.y + (this.lastTargetHeight + 0.4F) * 0.5F;
+      double worldZ = this.lastTargetPos.z;
+
+      double distSq = cam.squaredDistanceTo(worldX, worldY, worldZ);
+      if (distSq > 10000.0) return;
+
+      float baseSize = (float) (double) imageSize.get() * 12.0F;
+      float renderSize = baseSize * this.scaleValue;
+      renderSize = Math.min(renderSize, 30.0F);
+
+      long now = System.currentTimeMillis();
+      float dt = Math.max(0.001F, (float) (now - this.lastRotateUpdate) / 1000.0F);
+      dt = Math.min(dt, 0.1F);
+      this.lastRotateUpdate = now;
+      float cycleDuration = Math.max(0.35F, 2.2F / (float) (double) rotateSpeed.get());
+
+      for (this.rotProgress += dt / cycleDuration; this.rotProgress >= 1.0F; this.rotTo = this.rotTo > 0.0F ? -280.0F : 280.0F) {
+         this.rotProgress--;
+         this.rotFrom = this.rotTo;
+      }
+
+      float accel = (float) Easings.SINE_BOTH.ease(this.rotProgress);
+      float rotation = MathHelper.lerp(accel, this.rotFrom, this.rotTo);
+      float hurtPC = this.getHurtPC(this.lastTarget);
+      int baseColor = ColorUtil.multAlpha(this.getESPColor(), this.appearValue);
+      int redColor = ColorUtil.multAlpha(ColorUtil.getColor(255, 3, 3, 255), this.appearValue);
+      int color = ColorUtil.overCol(baseColor, redColor, hurtPC);
+      boolean image4 = typeImage.is("Картинка 4");
+      if (image4) {
+         color = ColorUtil.overCol(color, ColorUtil.multAlpha(0xFFFFFFFF, this.appearValue), 0.2F);
+      }
+
+      if (image4) {
+         int glowColor = ColorUtil.overCol(ColorUtil.multAlpha(this.getESPColor(), this.appearValue),
+               ColorUtil.multAlpha(0xFFFFFFFF, this.appearValue), 0.2F);
+         VertexConsumer glowBuf = this.markerBuffer(GLOW_NO_DEPTH_LAYER);
+         this.drawBillboard(glowBuf, event.getMatrixStack(), cam, worldX, worldY, worldZ, renderSize * 1.25F,
+               ColorUtil.multAlpha(glowColor, 0.2F), rotation);
+      }
+
+      VertexConsumer imgBuf = this.markerBuffer(this.imageLayer());
+      this.drawBillboard(imgBuf, event.getMatrixStack(), cam, worldX, worldY, worldZ, renderSize, color, rotation);
+      this.hitBubbleLastMarkerPos = new Vec3d(worldX, worldY, worldZ);
+   }
+
+   private VertexConsumer markerBuffer(RenderLayer layer) {
+      return this.markerImmediate.getBuffer(layer);
+   }
+
+   private Immediate markerImmediate;
+
+   private boolean isHitBubbleActive() {
+      return hitBubbleEffect.get() && typeTargetEsp.is("Картинка");
+   }
+
+   private vesence.utils.render.HitBubbleEffect.ColorMode hitBubbleColorMode() {
+      if (hitBubbleColor.is("Радужный")) {
+         return vesence.utils.render.HitBubbleEffect.ColorMode.RAINBOW;
+      }
+      return vesence.utils.render.HitBubbleEffect.ColorMode.CLIENT;
+   }
+
+   private int hitBubbleVoronoiPoints() {
+      if (hitBubbleVoronoiPriority.is("Производительность")) return 4;
+      if (hitBubbleVoronoiPriority.is("Сбалансированное")) return 16;
+      if (hitBubbleVoronoiPriority.is("Множество")) return 45;
+      if (hitBubbleVoronoiPriority.is("Ультра")) return 170;
+      return 16;
+   }
+
+   private void tickHitBubbleEffect(boolean hasTarget) {
+      if (!this.isHitBubbleActive()) {
+         this.hitBubbleShatter.clear();
+         this.hitBubbleShatterEmitted = false;
+         return;
+      }
+      if (hasTarget) {
+         this.hitBubbleShatterEmitted = false;
+      } else {
+         if (!this.hitBubbleShatterEmitted && this.hitBubbleLastMarkerPos != null
+               && mc.gameRenderer != null && mc.gameRenderer.getCamera() != null) {
+            float yaw = mc.gameRenderer.getCamera().getYaw();
+            float pitch = mc.gameRenderer.getCamera().getPitch();
+            this.hitBubbleShatter.spawn(this.hitBubbleLastMarkerPos, yaw, pitch, 1200.0f);
+            this.hitBubbleShatterEmitted = true;
+         }
+      }
+   }
+
+   private void renderHitBubbleShatter(EventRender3D event) {
+      if (!this.isHitBubbleActive()) return;
+      if (this.hitBubbleShatter.isEmpty()) return;
+      if (mc.gameRenderer == null || mc.gameRenderer.getCamera() == null) return;
+      Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
+      int themeColor = this.getESPColor();
+      int themeColor2 = ColorUtil.fade(90);
+
+      BufferAllocator allocQuad = new BufferAllocator(1048576);
+      BufferAllocator allocFill = new BufferAllocator(1048576);
+      Immediate imQuad = VertexConsumerProvider.immediate(allocQuad);
+      Immediate imFill = VertexConsumerProvider.immediate(allocFill);
+      try {
+         VertexConsumer quad = imQuad.getBuffer(this.bubbleQuadLayer());
+         VertexConsumer fill = imFill.getBuffer(this.bubbleFillLayer());
+         // line == null → белый каркас осколков отключён (полный порт harmony).
+         this.hitBubbleShatter.render(event.getMatrixStack(), cam, quad, fill, null,
+               1.0f, this.hitBubbleColorMode(), themeColor, themeColor2,
+               hitBubbleVoronoi.get(), this.hitBubbleVoronoiPoints());
+         imFill.draw();
+         imQuad.draw();
+      } finally {
+         allocQuad.close();
+         allocFill.close();
+      }
+   }
+
+   private void drawChainsV2(EventRender3D event, Immediate immediate, LivingEntity target) {
+      if (target == null || this.appearValue <= 0.01F) {
+         return;
+      }
+      float delta = event.getTickDelta();
+      Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
+      double tX = MathHelper.lerp(delta, target.lastRenderX, target.getX()) - camPos.x;
+      double tY = MathHelper.lerp(delta, target.lastRenderY, target.getY()) - camPos.y;
+      double tZ = MathHelper.lerp(delta, target.lastRenderZ, target.getZ()) - camPos.z;
+      float hurtFactor = this.getHurtPC(target);
+      float animationTime = target.age + delta;
+      float baseRadius = Math.max(0.2F, target.getWidth() * 0.90F * CHAINS_SCALE);
+      float bandHeight = Math.max(0.35F, target.getHeight() * 0.45F * CHAINS_SCALE);
+      float compressedRadius = baseRadius;
+      float primaryBandHeight = bandHeight;
+      float secondaryBandHeight = bandHeight * 0.8F;
+      float roll = MathHelper.sin(animationTime * 0.22F) * 18.0F;
+      float pitch = MathHelper.cos(animationTime * 0.18F) * 18.0F;
+      float spin = animationTime * 5.0F;
+      int red = ColorUtil.getColor(255, 0, 0, 255);
+      int startColor = ColorUtil.overCol(this.getESPColor(), red, hurtFactor * 0.95F);
+      int endColor = ColorUtil.overCol(ColorUtil.fade(90), red, hurtFactor * 0.95F);
+
+      VertexConsumer buffer = immediate.getBuffer(CHAIN_LAYER);
+      MatrixStack matrices = event.getMatrixStack();
+      matrices.push();
+      matrices.translate(tX, tY + target.getHeight() * 0.52, tZ);
+      this.renderChainBandV2(buffer, matrices, compressedRadius * 0.9F, primaryBandHeight, roll, pitch, spin, this.appearValue, startColor, endColor, 0.0F);
+      this.renderChainBandV2(buffer, matrices, compressedRadius * 0.98F, secondaryBandHeight, -roll, -pitch, -spin * 0.92F, this.appearValue * 0.92F, endColor, startColor, 0.38F);
+      matrices.pop();
+   }
+
+   private void renderChainBandV2(VertexConsumer buffer, MatrixStack matrices, float radius, float bandHeight,
+         float roll, float pitch, float spin, float alpha, int startColor, int endColor, float uvOffset) {
+      matrices.push();
+      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(roll));
+      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(pitch));
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      float bottomY = -bandHeight * 0.5F;
+      float topY = bandHeight * 0.5F;
+      int segments = 64;
+      float uvRepeats = 4.0F;
+
+      for (int i = 0; i < segments; i++) {
+         float progress0 = (float) i / segments;
+         float progress1 = (float) (i + 1) / segments;
+         float angle0 = progress0 * 360.0F + spin;
+         float angle1 = progress1 * 360.0F + spin;
+         float rad0 = (float) Math.toRadians(angle0);
+         float rad1 = (float) Math.toRadians(angle1);
+         float x0 = MathHelper.sin(rad0) * radius;
+         float z0 = MathHelper.cos(rad0) * radius;
+         float x1 = MathHelper.sin(rad1) * radius;
+         float z1 = MathHelper.cos(rad1) * radius;
+         float wobble0 = MathHelper.sin(progress0 * (float) (Math.PI * 2) + spin * 0.05F) * 0.06F;
+         float wobble1 = MathHelper.sin(progress1 * (float) (Math.PI * 2) + spin * 0.05F) * 0.06F;
+         int color0 = ColorUtil.multAlpha(ColorUtil.interpolate(startColor, endColor, progress0), alpha);
+         int color1 = ColorUtil.multAlpha(ColorUtil.interpolate(startColor, endColor, progress1), alpha);
+         float u0 = progress0 * uvRepeats + uvOffset;
+         float u1 = progress1 * uvRepeats + uvOffset;
+         int r0 = color0 >> 16 & 0xFF, g0 = color0 >> 8 & 0xFF, b0 = color0 & 0xFF, a0 = color0 >> 24 & 0xFF;
+         int r1 = color1 >> 16 & 0xFF, g1 = color1 >> 8 & 0xFF, b1 = color1 & 0xFF, a1 = color1 >> 24 & 0xFF;
+         texVertex(buffer, matrix, x0, bottomY + wobble0, z0, u0, 0.0F, r0, g0, b0, a0);
+         texVertex(buffer, matrix, x1, bottomY + wobble1, z1, u1, 0.0F, r1, g1, b1, a1);
+         texVertex(buffer, matrix, x1, topY + wobble1, z1, u1, 1.0F, r1, g1, b1, a1);
+         texVertex(buffer, matrix, x0, topY + wobble0, z0, u0, 1.0F, r0, g0, b0, a0);
+      }
+      matrices.pop();
+   }
+
+   private void drawGhostOrbits3D(EventRender3D event, Immediate immediate, LivingEntity target) {
+      if (target == null || this.appearValue <= 0.001F || this.lastTargetPos == null) return;
+
+      if (this.orbitLastTarget != target) {
+         for (int i = 0; i < ORBIT_PARTICLE_COUNT; i++) {
+            this.orbitPositions[i] = null;
+            this.orbitMotions[i] = Vec3d.ZERO;
+            this.orbitTrails[i].clear();
+         }
+         this.orbitLastTarget = target;
+      }
+
+      MatrixStack matrices = event.getMatrixStack();
+      Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
+      float partialTicks = event.getTickDelta();
+
+      double tx = MathHelper.lerp(partialTicks, target.lastRenderX, target.getX());
+      double ty = MathHelper.lerp(partialTicks, target.lastRenderY, target.getY());
+      double tz = MathHelper.lerp(partialTicks, target.lastRenderZ, target.getZ());
+      Vec3d targetCenter = new Vec3d(tx, ty + target.getHeight() / 2.0, tz);
+
+      long now = System.currentTimeMillis();
+      if (this.orbitLastTime == 0L) this.orbitLastTime = now;
+      float dtMs = now - this.orbitLastTime;
+      this.orbitLastTime = now;
+      float fpsFactor = 500.0F / Math.max(mc.getCurrentFps(), 10);
+      this.orbitMovingAngle += (20.0F * dtMs / 16.667F) * (ORBIT_SPEED / 55.0F);
+
+      boolean isHurt = target.hurtTime > 7;
+      float shrinkTarget = isHurt ? 1.0F : 0.0F;
+      this.orbitShrinkValue = this.animateTo(this.orbitShrinkValue, shrinkTarget, 0.06F);
+
+      VertexConsumer buffer = immediate.getBuffer(ESP_BLOOM_NO_DEPTH_LAYER);
+      int baseColor = this.getESPColor();
+      float hurtPC = this.getHurtPC(target);
+      int hurtRed = ColorUtil.getColor(255, 3, 3, 255);
+
+      for (int i = 0; i < ORBIT_PARTICLE_COUNT; i++) {
+         float angleOffset = i * 360.0F / ORBIT_PARTICLE_COUNT;
+         float currentAngle = this.orbitMovingAngle + angleOffset;
+         double radian = Math.toRadians(currentAngle);
+         float orbitRadius = ORBIT_BASE_RADIUS - this.orbitShrinkValue * ORBIT_BASE_RADIUS;
+         float ox = (float) Math.sin(radian) * orbitRadius;
+         float oz = (float) Math.cos(radian) * orbitRadius;
+         double oy = 0.3 * Math.sin(Math.toRadians(this.orbitMovingAngle / (i + 1.0F)));
+
+         Vec3d targetGhostPos = targetCenter.add(ox, oy, oz);
+         if (this.orbitPositions[i] == null || this.orbitPositions[i].distanceTo(targetGhostPos) > 10) {
+            this.orbitPositions[i] = targetGhostPos;
+            this.orbitMotions[i] = Vec3d.ZERO;
+         }
+
+         float mul = ORBIT_BASE_MUL * fpsFactor;
+         Vec3d diff = targetGhostPos.subtract(this.orbitPositions[i]);
+         this.orbitMotions[i] = diff.multiply(mul, mul, mul);
+         this.orbitPositions[i] = this.orbitPositions[i].add(this.orbitMotions[i]);
+
+         java.util.List<Vec3d> trail = this.orbitTrails[i];
+         if (trail.isEmpty() || trail.get(0).distanceTo(this.orbitPositions[i]) > 0.01) {
+            trail.add(0, this.orbitPositions[i]);
+            while (trail.size() > ORBIT_TRAIL_LENGTH) trail.remove(trail.size() - 1);
+         }
+
+         int trailSize = trail.size();
+         for (int j = 0; j < trailSize; j++) {
+            Vec3d p = trail.get(j);
+            float offset = 1.0F - (float) j / ORBIT_TRAIL_LENGTH;
+            float opacity = (float) Math.pow(offset, 1.8) * this.appearValue * 0.7F;
+            int color = ColorUtil.replAlpha(baseColor, (int) (opacity * 255));
+            color = ColorUtil.overCol(color, ColorUtil.replAlpha(hurtRed, (int) (opacity * 255)), hurtPC);
+            int r = color >> 16 & 0xFF, g = color >> 8 & 0xFF, b = color & 0xFF, a = color >> 24 & 0xFF;
+            float scale = ORBIT_SCALE_CACHE[Math.min((int) (offset * 100), 100)] * 0.8F;
+
+            matrices.push();
+            matrices.translate(p.x - camPos.x, p.y - camPos.y, p.z - camPos.z);
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+            Matrix4f matrix = matrices.peek().getPositionMatrix();
+            texVertex(buffer, matrix, -scale, scale, 0.0F, 0.0F, 1.0F, r, g, b, a);
+            texVertex(buffer, matrix, scale, scale, 0.0F, 1.0F, 1.0F, r, g, b, a);
+            texVertex(buffer, matrix, scale, -scale, 0.0F, 1.0F, 0.0F, r, g, b, a);
+            texVertex(buffer, matrix, -scale, -scale, 0.0F, 0.0F, 0.0F, r, g, b, a);
+            matrices.pop();
+         }
+
+         if (!trail.isEmpty()) {
+            Vec3d head = trail.get(0);
+            float headScale = 0.35F * this.appearValue;
+            int headBase = ColorUtil.replAlpha(baseColor, (int) (120 * this.appearValue));
+            int headColor = ColorUtil.overCol(headBase, ColorUtil.replAlpha(hurtRed, (int) (120 * this.appearValue)), hurtPC);
+            int r = headColor >> 16 & 0xFF, g = headColor >> 8 & 0xFF, b = headColor & 0xFF, a = headColor >> 24 & 0xFF;
+            matrices.push();
+            matrices.translate(head.x - camPos.x, head.y - camPos.y, head.z - camPos.z);
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+            Matrix4f matrix = matrices.peek().getPositionMatrix();
+            texVertex(buffer, matrix, -headScale, headScale, 0.0F, 0.0F, 1.0F, r, g, b, a);
+            texVertex(buffer, matrix, headScale, headScale, 0.0F, 1.0F, 1.0F, r, g, b, a);
+            texVertex(buffer, matrix, headScale, -headScale, 0.0F, 1.0F, 0.0F, r, g, b, a);
+            texVertex(buffer, matrix, -headScale, -headScale, 0.0F, 0.0F, 0.0F, r, g, b, a);
+            matrices.pop();
+         }
+      }
+   }
+
+   private void addBMWGhosts(LivingEntity entity, int cornersCount, int maxTime, int colorBase) {
+      float xzRange = 0.7F;
+      float yRange = entity.getHeight();
+      int delayXZ = (int) (double) bmwStrengthXZ.get();
+      int delayY = (int) (double) bmwStrengthY.get();
+      long time = System.currentTimeMillis();
+      float rotateProgress = (float) (time % delayXZ) / delayXZ;
+      float xzRotate = rotateProgress * 360.0F;
+      float yProgress = (float) (time % delayY) / delayY;
+      float yLrpPC = 0.5F - 0.5F * MathHelper.cos(yProgress * (float) (Math.PI * 2));
+
+      for (int corner = 0; corner < cornersCount; corner++) {
+         float cornersPC = (float) corner / cornersCount;
+         double yawRad = Math.toRadians(MathHelper.wrapDegrees(cornersPC * 360.0F + xzRotate));
+         float offsetX = -((float) Math.sin(yawRad)) * xzRange;
+         float offsetY = yRange * yLrpPC;
+         float offsetZ = (float) Math.cos(yawRad) * xzRange;
+         this.bmwPoints.add(new GlowPoint(offsetX, offsetY, offsetZ, maxTime, colorBase));
+      }
+   }
+
+   private void drawBMW3D(EventRender3D event, Immediate immediate) {
+      if (this.bmwPoints.isEmpty() || this.appearValue <= 0.001F) return;
+      LivingEntity renderTarget = this.lastTarget != null ? this.lastTarget : this.lastHandledTarget;
+      if (renderTarget == null && this.lastTargetPos == null) return;
+
+      float partialTicks = event.getTickDelta();
+      Vec3d basePos;
+      if (renderTarget != null && renderTarget.isAlive()) {
+         basePos = new Vec3d(
+            MathHelper.lerp(partialTicks, renderTarget.lastRenderX, renderTarget.getX()),
+            MathHelper.lerp(partialTicks, renderTarget.lastRenderY, renderTarget.getY()),
+            MathHelper.lerp(partialTicks, renderTarget.lastRenderZ, renderTarget.getZ()));
+      } else {
+         basePos = this.lastTargetPos;
+      }
+      if (basePos == null) return;
+
+      Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
+      float hurtPC = this.getHurtPC(renderTarget);
+      float fixedScreenSize = 6.0F;
+      VertexConsumer buffer = immediate.getBuffer(ESP_BLOOM_NO_DEPTH_LAYER);
+      MatrixStack matrices = event.getMatrixStack();
+      int hurtRed = ColorUtil.getColor(255, 3, 3, 255);
+
+      for (GlowPoint point : this.bmwPoints) {
+         float timePC = point.getTimeProgress();
+         float trailFactor = 1.0F - timePC * 0.6F;
+         double worldX = basePos.x + point.x;
+         double worldY = basePos.y + point.y;
+         double worldZ = basePos.z + point.z;
+         float sz = fixedScreenSize * trailFactor;
+         int alphaI = (int) (255.0F * this.appearValue * trailFactor * 0.8F);
+         alphaI = Math.max(0, Math.min(255, alphaI));
+         int col = ColorUtil.replAlpha(point.baseColor, alphaI);
+         int redC = ColorUtil.replAlpha(hurtRed, alphaI);
+         int finalColor = ColorUtil.overCol(col, redC, hurtPC);
+         this.drawBillboard(buffer, matrices, cam, worldX, worldY, worldZ, sz, finalColor, 0.0F);
+      }
+   }
+
+   private void drawCompass3D(EventRender3D event, Immediate immediate, LivingEntity target) {
+      if (target == null || this.appearValue <= 0.001F || this.lastTargetPos == null) return;
+      MatrixStack matrices = event.getMatrixStack();
+      Vec3d camPos = mc.gameRenderer.getCamera().getCameraPos();
+      float partialTicks = event.getTickDelta();
+      double x = MathHelper.lerp(partialTicks, target.lastRenderX, target.getX()) - camPos.x;
+      double y = MathHelper.lerp(partialTicks, target.lastRenderY, target.getY()) - camPos.y;
+      double z = MathHelper.lerp(partialTicks, target.lastRenderZ, target.getZ()) - camPos.z;
+      float height = target.getHeight();
+
+      final double FLOOR_OFFSET = 0.15;
+      short period = 1500;
+      double t = System.currentTimeMillis() % (long) period;
+      boolean ascending = t > (period / 2);
+      float progress = (float) (t / (period / 2.0));
+      if (ascending) progress -= 1.0F;
+      else progress = 1.0F - progress;
+      progress = progress < 0.5F ? 2.0F * progress * progress :
+         (float) (1.0 - Math.pow(-2.0F * progress + 2.0F, 2.0) / 2.0);
+      double yOffset = height / 2.0F * (progress > 0.5F ? 1.0F - progress : progress) * (ascending ? -1 : 1);
+
+      matrices.push();
+      matrices.translate(x, y + height * progress + yOffset + FLOOR_OFFSET, z);
+
+      float hurtPC = this.getHurtPC(target);
+      float hurtTime = MathHelper.clamp((target.hurtTime - (target.hurtTime != 0 ? partialTicks : 0.0F)) / 10.0F, 0.0F, 1.0F);
+      long timeMs = (long) ((System.currentTimeMillis() - this.compassTimestamp4) / 2.5F);
+      long nanoTime = System.nanoTime();
+      float deltaTime = (nanoTime - this.compassTimestamp5) / 2_000_000.0F;
+      this.compassTimestamp5 = nanoTime;
+      this.compassValue23 += hurtTime * deltaTime;
+
+      VertexConsumer buffer = immediate.getBuffer(ESP_BLOOM_LAYER);
+      int baseColor = this.getESPColor();
+      int hurtRed = ColorUtil.getColor(255, 3, 3, 255);
+
+      for (int layer = 0; layer < 4; layer++) {
+         for (int i = 0; i < 15; i++) {
+            matrices.push();
+            float particleProgress = i / 14.0F;
+            float sizeP = (0.5F * (1.0F - particleProgress) + 0.5F * particleProgress) * this.appearValue;
+            float angle = 0.2F * (timeMs + this.compassValue23 - i * 3.5F) / 15.0F;
+            boolean firstHalf = particleProgress < 0.5F;
+            float wave = firstHalf ? particleProgress * 2.0F : (1.0F - particleProgress) * 2.0F;
+            double amplitude = Math.sin(wave * Math.PI) * 2.0;
+            java.util.Random random = new java.util.Random(i * 12345L);
+            double offsetX = (random.nextDouble() - 0.5) * amplitude;
+            double offsetY = (random.nextDouble() - 0.5) * amplitude;
+            double offsetZ = (random.nextDouble() - 0.5) * amplitude;
+            double animOffsetX = offsetX * this.appearValue - offsetX;
+            double animOffsetY = offsetY * this.appearValue - offsetY;
+            double animOffsetZ = offsetZ * this.appearValue - offsetZ;
+            double radius = 0.7;
+
+            switch (layer) {
+               case 0:
+                  matrices.translate(Math.cos(angle) * radius + animOffsetX, animOffsetY, Math.sin(angle) * radius + animOffsetZ);
+                  break;
+               case 1:
+                  matrices.translate(-Math.sin(angle) * radius + animOffsetX, animOffsetY, Math.cos(angle) * radius + animOffsetZ);
+                  break;
+               case 2:
+                  matrices.translate(-Math.cos(angle) * radius + animOffsetX, animOffsetY, -Math.sin(angle) * radius + animOffsetZ);
+                  break;
+               case 3:
+                  matrices.translate(Math.sin(angle) * radius + animOffsetX, animOffsetY, -Math.cos(angle) * radius + animOffsetZ);
+                  break;
+            }
+
+            float particleSize = sizeP * 0.5F;
+            int particleColor = ColorUtil.replAlpha(baseColor, (int) (160 * this.appearValue));
+            particleColor = ColorUtil.overCol(particleColor, ColorUtil.replAlpha(hurtRed, (int) (160 * this.appearValue)), hurtPC);
+            int r = particleColor >> 16 & 0xFF, g = particleColor >> 8 & 0xFF, b = particleColor & 0xFF, a = particleColor >> 24 & 0xFF;
+
+            matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+            Matrix4f matrix = matrices.peek().getPositionMatrix();
+            texVertex(buffer, matrix, -particleSize, -particleSize, 0.0F, 1.0F, 1.0F, r, g, b, a);
+            texVertex(buffer, matrix, particleSize, -particleSize, 0.0F, 0.0F, 1.0F, r, g, b, a);
+            texVertex(buffer, matrix, particleSize, particleSize, 0.0F, 0.0F, 0.0F, r, g, b, a);
+            texVertex(buffer, matrix, -particleSize, particleSize, 0.0F, 1.0F, 0.0F, r, g, b, a);
+            matrices.pop();
+         }
+      }
+      matrices.pop();
+   }
+
+   private void drawSkull3D(EventRender3D event, Immediate immediate, LivingEntity target) {
+      if (target == null || this.appearValue <= 0.001F) return;
+
+      MatrixStack matrices = event.getMatrixStack();
+      Vec3d cam = mc.gameRenderer.getCamera().getCameraPos();
+      float camYaw = mc.gameRenderer.getCamera().getYaw();
+      float camPitch = mc.gameRenderer.getCamera().getPitch();
+      float partialTicks = event.getTickDelta();
+      double tx = MathHelper.lerp(partialTicks, target.lastRenderX, target.getX());
+      double ty = MathHelper.lerp(partialTicks, target.lastRenderY, target.getY()) + target.getHeight() / 2.0;
+      double tz = MathHelper.lerp(partialTicks, target.lastRenderZ, target.getZ());
+
+      long now = System.currentTimeMillis();
+      if (this.lastSkullTime == 0L) this.lastSkullTime = now;
+      float dt = (float) (now - this.lastSkullTime) / 1000.0F;
+      this.lastSkullTime = now;
+
+      float hpPC = target.getMaxHealth() > 0.0F ? target.getHealth() / target.getMaxHealth() : 1.0F;
+      int state = hpPC >= 0.66F ? 0 : (hpPC >= 0.33F ? 1 : 2);
+      if (this.skullCurrentState == -1) {
+         this.skullCurrentState = state;
+         this.skullNextState = state;
+         this.skullFadeProgress = 1.0F;
+      }
+      if (state != this.skullCurrentState && state != this.skullNextState) {
+         this.skullNextState = state;
+         this.skullFadeProgress = 0.0F;
+         this.skullShakeStart = now;
+      }
+      if (this.skullFadeProgress < 1.0F) {
+         this.skullFadeProgress = Math.min(1.0F, this.skullFadeProgress + dt / 0.3F);
+         if (this.skullFadeProgress >= 1.0F) this.skullCurrentState = this.skullNextState;
+      }
+
+      float shakeX = 0.0F;
+      float shakeY = 0.0F;
+      long shakeAge = now - this.skullShakeStart;
+      if (this.skullShakeStart > 0L && shakeAge < 400L) {
+         float k = 1.0F - (float) shakeAge / 400.0F;
+         shakeX = (float) (Math.sin(shakeAge / 22.0) * 0.1 * k);
+         shakeY = (float) (Math.cos(shakeAge / 17.0) * 0.1 * k);
+      }
+
+      double rx = tx - cam.x + shakeX;
+      double ry = ty - cam.y + shakeY;
+      double rz = tz - cam.z;
+      float scale = (1.0F - this.appearValue * 0.2F) * 0.95F;
+
+      int theme = this.getFlowColor(0);
+      float r = Math.min(1.0F, (theme >> 16 & 0xFF) / 255.0F * 1.5F);
+      float g = Math.min(1.0F, (theme >> 8 & 0xFF) / 255.0F * 1.5F);
+      float b = Math.min(1.0F, (theme & 0xFF) / 255.0F * 1.5F);
+
+      if (this.skullFadeProgress < 1.0F) {
+         VertexConsumer b1 = immediate.getBuffer(this.skullLayer(this.skullCurrentState));
+         this.drawSkullQuad(b1, matrices, rx, ry, rz, scale, r, g, b, this.appearValue * (1.0F - this.skullFadeProgress), camYaw, camPitch);
+      }
+      VertexConsumer b2 = immediate.getBuffer(this.skullLayer(this.skullNextState));
+      this.drawSkullQuad(b2, matrices, rx, ry, rz, scale, r, g, b, this.appearValue * this.skullFadeProgress, camYaw, camPitch);
+   }
+
+   private void drawSkullQuad(VertexConsumer buffer, MatrixStack matrices, double x, double y, double z,
+         float size, float r, float g, float b, float alpha, float camYaw, float camPitch) {
+      matrices.push();
+      matrices.translate(x, y, z);
+      matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-camYaw));
+      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(camPitch));
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      float half = size / 2.0F;
+      int ri = (int) (r * 255.0F);
+      int gi = (int) (g * 255.0F);
+      int bi = (int) (b * 255.0F);
+      int ai = (int) (alpha * 255.0F);
+      texVertex(buffer, matrix, -half, -half, 0.0F, 0.0F, 1.0F, ri, gi, bi, ai);
+      texVertex(buffer, matrix, half, -half, 0.0F, 1.0F, 1.0F, ri, gi, bi, ai);
+      texVertex(buffer, matrix, half, half, 0.0F, 1.0F, 0.0F, ri, gi, bi, ai);
+      texVertex(buffer, matrix, -half, half, 0.0F, 0.0F, 0.0F, ri, gi, bi, ai);
+      matrices.pop();
+   }
+
+   private void renderPentagram3D(EventRender3D event, Immediate immediate, LivingEntity target) {
+      if (target == null || !target.isAlive()) {
+         if (this.lastTargetPos == null || this.appearValue <= 0.001F) return;
+      }
+      float show = MathHelper.clamp(this.appearValue, 0.0F, 1.0F);
+      if (show <= 0.001F) return;
+
+      float partialTicks = event.getTickDelta();
+      MatrixStack matrices = event.getMatrixStack();
+      Vec3d cameraPos = mc.gameRenderer.getCamera().getCameraPos();
+
+      double x, y, z;
+      float targetWidth;
+      if (target != null && target.isAlive()) {
+         x = MathHelper.lerp(partialTicks, target.lastRenderX, target.getX());
+         y = MathHelper.lerp(partialTicks, target.lastRenderY, target.getY()) + 0.01;
+         z = MathHelper.lerp(partialTicks, target.lastRenderZ, target.getZ());
+         targetWidth = target.getWidth();
+      } else {
+         x = this.lastTargetPos.x;
+         y = this.lastTargetPos.y + 0.01;
+         z = this.lastTargetPos.z;
+         targetWidth = this.lastTargetWidth;
+      }
+
+      float hurtPC = this.getHurtPC(target);
+      float speed = Math.max(0.1F, (float) (double) pentagramSpeed.get());
+      float ticks = mc.player != null ? mc.player.age + partialTicks : partialTicks;
+      float rotation = ticks * 18.0F * speed;
+      float pulse = 1.0F + 0.06F * MathHelper.sin(ticks * 0.12F);
+      float scale = (0.82F + targetWidth * 0.55F) * show * pulse;
+
+      VertexConsumer circleBuffer = immediate.getBuffer(PENTAGRAM_CIRCLE_LAYER);
+      this.renderPentagramGlow(circleBuffer, matrices, cameraPos, x, y, z, rotation, scale * 1.60F, show * 1.05F, hurtPC);
+      this.renderPentagramTextureLayer(circleBuffer, matrices, cameraPos, x, y, z, rotation, scale * 0.80F, show, hurtPC);
+
+      this.updateAndSpawnPentagramParticles(target, scale * 0.80F);
+      VertexConsumer bloomBuffer = immediate.getBuffer(ESP_BLOOM_LAYER);
+      this.renderPentagramParticles(bloomBuffer, matrices, cameraPos, partialTicks, show, hurtPC);
+   }
+
+   private void updateAndSpawnPentagramParticles(LivingEntity target, float pentagramRadius) {
+      long now = System.currentTimeMillis();
+      if (this.lastPentagramParticleTime == 0L) {
+         this.lastPentagramParticleTime = now;
+      }
+      float dtMs = Math.min((float) (now - this.lastPentagramParticleTime), 50.0F);
+      this.lastPentagramParticleTime = now;
+      float maxHeight = target != null ? target.getHeight() * 2.2F : 3.5F;
+
+      this.pentagramParticles.removeIf(p -> {
+         p.update(dtMs, now, target, maxHeight);
+         if (p.shouldRemove(now)) {
+            this.pentagramPool.offerFirst(p);
+            return true;
+         }
+         return false;
+      });
+
+      if (target != null && target.isAlive() && this.appearValue > 0.1F && this.pentagramParticles.size() < MAX_PENTAGRAM_PARTICLES) {
+         int spawnCount = (int) (dtMs / PENTAGRAM_PARTICLE_SPAWN_INTERVAL_MS);
+         spawnCount = Math.max(1, Math.min(spawnCount, 4));
+         for (int i = 0; i < spawnCount && this.pentagramParticles.size() < MAX_PENTAGRAM_PARTICLES; i++) {
+            this.spawnPentagramParticle(target, pentagramRadius);
+         }
+      }
+   }
+
+   private void spawnPentagramParticle(LivingEntity target, float pentagramRadius) {
+      double angle = Math.random() * Math.PI * 2.0;
+      double dist = Math.sqrt(Math.random()) * pentagramRadius * 0.9F;
+      double offsetX = Math.cos(angle) * dist;
+      double offsetZ = Math.sin(angle) * dist;
+      double offsetY = 0.02;
+      float vy = 0.028F + (float) Math.random() * 0.022F;
+      float vx = (float) ((Math.random() - 0.5) * 0.004);
+      float vz = (float) ((Math.random() - 0.5) * 0.004);
+      float tangentSpeed = 0.003F + (float) Math.random() * 0.003F;
+      vx += (float) (-Math.sin(angle) * tangentSpeed);
+      vz += (float) (Math.cos(angle) * tangentSpeed);
+      float sizeP = 0.04F + (float) Math.random() * 0.06F;
+      int maxLife = 800 + (int) (Math.random() * 600);
+      int colorSeed = (int) (Math.random() * 360);
+
+      PentParticle particle = this.pentagramPool.pollFirst();
+      if (particle == null) {
+         particle = new PentParticle(target, offsetX, offsetY, offsetZ, vx, vy, vz, sizeP, maxLife, colorSeed);
+      } else {
+         particle.init(target, offsetX, offsetY, offsetZ, vx, vy, vz, sizeP, maxLife, colorSeed);
+      }
+      this.pentagramParticles.add(particle);
+   }
+
+   private void renderPentagramParticles(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+         float partialTicks, float globalAlpha, float hurtPC) {
+      if (this.pentagramParticles.isEmpty()) return;
+      long now = System.currentTimeMillis();
+
+      for (PentParticle particle : this.pentagramParticles) {
+         float alpha = particle.getAlpha(now) * globalAlpha;
+         if (alpha <= 0.01F) continue;
+
+         double px = particle.getRenderX(partialTicks) - cameraPos.x;
+         double py = particle.getRenderY(partialTicks) - cameraPos.y;
+         double pz = particle.getRenderZ(partialTicks) - cameraPos.z;
+
+         int color = this.pentagramColorHurt(alpha * 0.85F, hurtPC);
+         int r = color >> 16 & 0xFF, g = color >> 8 & 0xFF, b = color & 0xFF, a = color >> 24 & 0xFF;
+         float sizeP = particle.size * (0.6F + alpha * 0.4F);
+
+         matrices.push();
+         matrices.translate(px, py, pz);
+         matrices.multiply(RotationAxis.POSITIVE_Y.rotationDegrees(-mc.gameRenderer.getCamera().getYaw()));
+         matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(mc.gameRenderer.getCamera().getPitch()));
+         Matrix4f matrix = matrices.peek().getPositionMatrix();
+         texVertex(buffer, matrix, -sizeP, -sizeP, 0.0F, 0.0F, 0.0F, r, g, b, a);
+         texVertex(buffer, matrix, sizeP, -sizeP, 0.0F, 1.0F, 0.0F, r, g, b, a);
+         texVertex(buffer, matrix, sizeP, sizeP, 0.0F, 1.0F, 1.0F, r, g, b, a);
+         texVertex(buffer, matrix, -sizeP, sizeP, 0.0F, 0.0F, 1.0F, r, g, b, a);
+         matrices.pop();
+      }
+   }
+
+   private void renderPentagramTextureLayer(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+         double x, double y, double z, float rotation, float scale, float alpha, float hurtPC) {
+      if (scale <= 0.01F || alpha <= 0.01F) return;
+      int color = this.pentagramColorHurt(alpha, hurtPC);
+      int r = color >> 16 & 0xFF, g = color >> 8 & 0xFF, b = color & 0xFF, a = color >> 24 & 0xFF;
+
+      matrices.push();
+      matrices.translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
+      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
+      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
+      matrices.scale(scale, scale, scale);
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+      texVertex(buffer, matrix, -1.0F, 1.0F, 0.0F, 0.0F, 1.0F, r, g, b, a);
+      texVertex(buffer, matrix, 1.0F, 1.0F, 0.0F, 1.0F, 1.0F, r, g, b, a);
+      texVertex(buffer, matrix, 1.0F, -1.0F, 0.0F, 1.0F, 0.0F, r, g, b, a);
+      texVertex(buffer, matrix, -1.0F, -1.0F, 0.0F, 0.0F, 0.0F, r, g, b, a);
+      matrices.pop();
+   }
+
+   private void renderPentagramGlow(VertexConsumer buffer, MatrixStack matrices, Vec3d cameraPos,
+         double x, double y, double z, float rotation, float radius, float alpha, float hurtPC) {
+      if (alpha <= 0.01F || radius <= 0.01F) return;
+      matrices.push();
+      matrices.translate(x - cameraPos.x, y - cameraPos.y, z - cameraPos.z);
+      matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(90.0F));
+      matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(rotation));
+      Matrix4f matrix = matrices.peek().getPositionMatrix();
+
+      int layers = 70;
+      float maxHeight = radius * 0.1F;
+      float expand = radius * 0.28F;
+
+      for (int i = 0; i < layers; i++) {
+         float progress = (float) i / (float) layers;
+         float yOffset = maxHeight * progress;
+         float layerAlpha = alpha * (1.0F - progress) * (1.0F - progress) * 0.14F;
+         if (layerAlpha <= 0.01F) continue;
+         float layerRadius = radius + expand * progress;
+         float half = layerRadius / 2.0F;
+         float zOffset = -yOffset;
+         int color = this.pentagramColorHurt(layerAlpha, hurtPC);
+         int r = color >> 16 & 0xFF, g = color >> 8 & 0xFF, b = color & 0xFF, a = color >> 24 & 0xFF;
+         texVertex(buffer, matrix, -half, half, zOffset, 0.0F, 1.0F, r, g, b, a);
+         texVertex(buffer, matrix, half, half, zOffset, 1.0F, 1.0F, r, g, b, a);
+         texVertex(buffer, matrix, half, -half, zOffset, 1.0F, 0.0F, r, g, b, a);
+         texVertex(buffer, matrix, -half, -half, zOffset, 0.0F, 0.0F, r, g, b, a);
+      }
+      matrices.pop();
+   }
+
+   private int pentagramColor(float alpha) {
+      int themeColor = ColorUtil.fade();
+      int a = (int) (MathHelper.clamp(alpha, 0.0F, 1.0F) * 255.0F);
+      return (a << 24) | (themeColor & 0x00FFFFFF);
+   }
+
+   private int pentagramColorHurt(float alpha, float hurtPC) {
+      int base = this.pentagramColor(alpha);
+      if (hurtPC <= 0.0F) return base;
+      int a = (int) (MathHelper.clamp(alpha, 0.0F, 1.0F) * 255.0F);
+      int red = (a << 24) | 0xFF3333;
+      return ColorUtil.overCol(base, red, hurtPC);
+   }
+
+   private static class GlowPoint {
+      final float x;
+      final float y;
+      final float z;
+      final long startTime;
+      final int maxLife;
+      final int baseColor;
+
+      GlowPoint(float x, float y, float z, int maxLife, int baseColor) {
+         this.x = x;
+         this.y = y;
+         this.z = z;
+         this.startTime = System.currentTimeMillis();
+         this.maxLife = maxLife;
+         this.baseColor = baseColor;
+      }
+
+      boolean shouldRemove() {
+         return System.currentTimeMillis() - this.startTime >= this.maxLife;
+      }
+
+      float getTimeProgress() {
+         return MathHelper.clamp((float) (System.currentTimeMillis() - this.startTime) / this.maxLife, 0.0F, 1.0F);
+      }
+   }
+
+   private static class PentParticle {
+      double x, y, z;
+      double worldX, worldY, worldZ;
+      float vx, vy, vz;
+      long spawnTime;
+      int maxLifeMs;
+      float size;
+      int colorSeed;
+      LivingEntity entity;
+      boolean fading;
+      long fadeStartTime;
+      static final long FADE_DURATION_MS = 280L;
+
+      PentParticle(LivingEntity entity, double x, double y, double z, float vx, float vy, float vz, float size, int maxLifeMs, int colorSeed) {
+         this.init(entity, x, y, z, vx, vy, vz, size, maxLifeMs, colorSeed);
+      }
+
+      void init(LivingEntity entity, double x, double y, double z, float vx, float vy, float vz, float size, int maxLifeMs, int colorSeed) {
+         this.entity = entity;
+         this.x = x;
+         this.y = y;
+         this.z = z;
+         this.vx = vx;
+         this.vy = vy;
+         this.vz = vz;
+         this.size = size;
+         this.maxLifeMs = maxLifeMs;
+         this.colorSeed = colorSeed;
+         this.spawnTime = System.currentTimeMillis();
+         this.fading = false;
+         this.fadeStartTime = 0L;
+         this.worldX = 0.0;
+         this.worldY = 0.0;
+         this.worldZ = 0.0;
+      }
+
+      void update(float dtMs, long now, LivingEntity currentTarget, float maxHeight) {
+         float step = dtMs / 16.667F;
+         if (!this.fading) {
+            this.x += this.vx * step;
+            this.y += this.vy * step;
+            this.z += this.vz * step;
+            this.vx *= 0.985F;
+            this.vz *= 0.985F;
+            if (this.y >= maxHeight) {
+               this.beginFade(now);
+               return;
+            }
+            boolean targetLost = currentTarget == null || this.entity == null || !this.entity.isAlive() || this.entity != currentTarget;
+            if (targetLost || (now - this.spawnTime) >= this.maxLifeMs) {
+               this.beginFade(now);
+            }
+         }
+      }
+
+      boolean shouldRemove(long now) {
+         return this.fading && (now - this.fadeStartTime) >= FADE_DURATION_MS;
+      }
+
+      float getAlpha(long now) {
+         if (!this.fading) {
+            float fadeIn = MathHelper.clamp((float) (now - this.spawnTime) / 120.0F, 0.0F, 1.0F);
+            float lifeProgress = MathHelper.clamp((float) (now - this.spawnTime) / (float) this.maxLifeMs, 0.0F, 1.0F);
+            float fadeOut = 1.0F - lifeProgress * lifeProgress;
+            return fadeIn * fadeOut;
+         } else {
+            return 1.0F - MathHelper.clamp((float) (now - this.fadeStartTime) / (float) FADE_DURATION_MS, 0.0F, 1.0F);
+         }
+      }
+
+      private void beginFade(long now) {
+         if (!this.fading) {
+            if (this.entity != null) {
+               this.worldX = this.entity.getX() + this.x;
+               this.worldY = this.entity.getY() + this.y;
+               this.worldZ = this.entity.getZ() + this.z;
+            } else {
+               this.worldX = this.x;
+               this.worldY = this.y;
+               this.worldZ = this.z;
+            }
+            this.fadeStartTime = now;
+            this.fading = true;
+            this.entity = null;
+         }
+      }
+
+      double getRenderX(float partialTicks) {
+         if (!this.fading && this.entity != null) {
+            return MathHelper.lerp(partialTicks, this.entity.lastRenderX, this.entity.getX()) + this.x;
+         }
+         return this.worldX;
+      }
+
+      double getRenderY(float partialTicks) {
+         if (!this.fading && this.entity != null) {
+            return MathHelper.lerp(partialTicks, this.entity.lastRenderY, this.entity.getY()) + this.y;
+         }
+         return this.worldY;
+      }
+
+      double getRenderZ(float partialTicks) {
+         if (!this.fading && this.entity != null) {
+            return MathHelper.lerp(partialTicks, this.entity.lastRenderZ, this.entity.getZ()) + this.z;
+         }
+         return this.worldZ;
+      }
    }
 
    @Environment(EnvType.CLIENT)

@@ -57,6 +57,7 @@
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
     "LightmapTextureManagerMixin",
+    "LivingEntityRendererAccessor",
     "LivingEntityRendererMixin",
     "NoRenderGameRendererMixin",
     "NoRenderParticleManagerMixin",
@@ -68,7 +69,9 @@
     "RenderTickCounterMixin",
     "SaturationGameRendererMixin",
     "ChatScreenMixin",
-    "ScreenTooltipMixin"
+    "ScreenTooltipMixin",
+    "EnchantGlintColorMixin",
+    "DynamicUniformsGlintMixin"
   ],
   "injectors": {
     "defaultRequire": 1
