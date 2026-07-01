@@ -11,6 +11,7 @@ import vesence.utils.render.ColorUtil;
 import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.math.animation.anim.util.Easings;
 import vesence.utils.render.text.FontObject;
+import vesence.utils.render.text.FontRegistry;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -69,23 +70,23 @@ public class ModernCoordsElement extends HudElement {
         String bpsLabel = "BPS: ";
         String bpsValue = String.valueOf(bps);
 
-        float coordsLabelW = renderer.measureText(font, coordsLabel, FONT_SIZE).width;
-        float xValW = renderer.measureText(font, xVal, FONT_SIZE).width;
-        float xLetterW = renderer.measureText(font, xLetter, FONT_SIZE).width;
-        float yValW = renderer.measureText(font, yVal, FONT_SIZE).width;
-        float yLetterW = renderer.measureText(font, yLetter, FONT_SIZE).width;
-        float zValW = renderer.measureText(font, zVal, FONT_SIZE).width;
-        float zLetterW = renderer.measureText(font, zLetter, FONT_SIZE).width;
-        float sep1W = renderer.measureText(font, sep1, FONT_SIZE).width;
-        float timeLabelW = renderer.measureText(font, timeLabel, FONT_SIZE).width;
-        float timeValueW = renderer.measureText(font, timeValue, FONT_SIZE).width;
-        float sep2W = renderer.measureText(font, sep2, FONT_SIZE).width;
-        float bpsLabelW = renderer.measureText(font, bpsLabel, FONT_SIZE).width;
-        float bpsValueW = renderer.measureText(font, bpsValue, FONT_SIZE).width;
+        float coordsLabelW = renderer.measureText(FontRegistry.MONTSERRAT, coordsLabel, FONT_SIZE).width;
+        float xValW = renderer.measureText(FontRegistry.MONTSERRAT, xVal, FONT_SIZE).width;
+        float xLetterW = renderer.measureText(FontRegistry.MONTSERRAT, xLetter, FONT_SIZE).width;
+        float yValW = renderer.measureText(FontRegistry.MONTSERRAT, yVal, FONT_SIZE).width;
+        float yLetterW = renderer.measureText(FontRegistry.MONTSERRAT, yLetter, FONT_SIZE).width;
+        float zValW = renderer.measureText(FontRegistry.MONTSERRAT, zVal, FONT_SIZE).width;
+        float zLetterW = renderer.measureText(FontRegistry.MONTSERRAT, zLetter, FONT_SIZE).width;
+        float sep1W = renderer.measureText(FontRegistry.MONTSERRAT, sep1, FONT_SIZE).width;
+        float timeLabelW = renderer.measureText(FontRegistry.MONTSERRAT, timeLabel, FONT_SIZE).width;
+        float timeValueW = renderer.measureText(FontRegistry.MONTSERRAT, timeValue, FONT_SIZE).width;
+        float sep2W = renderer.measureText(FontRegistry.MONTSERRAT, sep2, FONT_SIZE).width;
+        float bpsLabelW = renderer.measureText(FontRegistry.MONTSERRAT, bpsLabel, FONT_SIZE).width;
+        float bpsValueW = renderer.measureText(FontRegistry.MONTSERRAT, bpsValue, FONT_SIZE).width;
 
         float totalW = coordsLabelW + xValW + xLetterW + yValW + yLetterW + zValW + zLetterW
                 + sep1W + timeLabelW + timeValueW + sep2W + bpsLabelW + bpsValueW;
-        float textH = renderer.measureText(font, coordsLabel, FONT_SIZE).height;
+        float textH = renderer.measureText(FontRegistry.MONTSERRAT, coordsLabel, FONT_SIZE).height;
         float targetW = totalW + PADDING_H * 2f;
         float targetH = textH + PADDING_V * 2f;
 
@@ -102,38 +103,38 @@ public class ModernCoordsElement extends HudElement {
         float curX = x + PADDING_H - 1;
         float curY = y + PADDING_V + 14;
 
-        renderer.text(font, curX, curY, FONT_SIZE, coordsLabel, WHITE_COLOR);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, coordsLabel, WHITE_COLOR);
         curX += coordsLabelW;
 
-        curX += vesence.utils.render.text.AnimatedText.draw(renderer, font, "minfo_x", xVal,
+        curX += vesence.utils.render.text.AnimatedText.draw(renderer, FontRegistry.MONTSERRAT, "minfo_x", xVal,
               curX, curY, FONT_SIZE, themeColor, vesence.utils.render.text.AnimatedText.ALIGN_LEFT);
-        renderer.text(font, curX, curY, FONT_SIZE, xLetter, semiThemeColor);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, xLetter, semiThemeColor);
         curX += xLetterW;
 
-        curX += vesence.utils.render.text.AnimatedText.draw(renderer, font, "minfo_y", yVal,
+        curX += vesence.utils.render.text.AnimatedText.draw(renderer, FontRegistry.MONTSERRAT, "minfo_y", yVal,
               curX, curY, FONT_SIZE, themeColor, vesence.utils.render.text.AnimatedText.ALIGN_LEFT);
-        renderer.text(font, curX, curY, FONT_SIZE, yLetter, semiThemeColor);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, yLetter, semiThemeColor);
         curX += yLetterW;
 
-        curX += vesence.utils.render.text.AnimatedText.draw(renderer, font, "minfo_z", zVal,
+        curX += vesence.utils.render.text.AnimatedText.draw(renderer, FontRegistry.MONTSERRAT, "minfo_z", zVal,
               curX, curY, FONT_SIZE, themeColor, vesence.utils.render.text.AnimatedText.ALIGN_LEFT);
-        renderer.text(font, curX, curY, FONT_SIZE, zLetter, semiThemeColor);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, zLetter, semiThemeColor);
         curX += zLetterW;
 
-        renderer.text(font, curX, curY, FONT_SIZE, sep1, sepColor);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, sep1, sepColor);
         curX += sep1W;
 
-        renderer.text(font, curX, curY, FONT_SIZE, timeLabel, WHITE_COLOR);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, timeLabel, WHITE_COLOR);
         curX += timeLabelW;
-        curX += vesence.utils.render.text.AnimatedText.draw(renderer, font, "minfo_time", timeValue,
+        curX += vesence.utils.render.text.AnimatedText.draw(renderer, FontRegistry.MONTSERRAT, "minfo_time", timeValue,
               curX, curY, FONT_SIZE, themeColor, vesence.utils.render.text.AnimatedText.ALIGN_LEFT);
 
-        renderer.text(font, curX, curY, FONT_SIZE, sep2, sepColor);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, sep2, sepColor);
         curX += sep2W;
 
-        renderer.text(font, curX, curY, FONT_SIZE, bpsLabel, WHITE_COLOR);
+        renderer.text(FontRegistry.MONTSERRAT, curX, curY, FONT_SIZE, bpsLabel, WHITE_COLOR);
         curX += bpsLabelW;
-        vesence.utils.render.text.AnimatedText.draw(renderer, font, "minfo_bps", bpsValue,
+        vesence.utils.render.text.AnimatedText.draw(renderer, FontRegistry.MONTSERRAT, "minfo_bps", bpsValue,
               curX, curY, FONT_SIZE, themeColor, vesence.utils.render.text.AnimatedText.ALIGN_LEFT);
     }
 
@@ -146,12 +147,12 @@ public class ModernCoordsElement extends HudElement {
         float bps = getBps(mc);
         String timeStr = LocalTime.now().format(TIME_FMT);
         String full = "Coords " + bx + "x " + by + "y " + bz + "z | Time: " + timeStr + " | BPS: " + bps;
-        return renderer.measureText(font, full, FONT_SIZE).width + PADDING_H * 2f;
+        return renderer.measureText(FontRegistry.MONTSERRAT, full, FONT_SIZE).width + PADDING_H * 2f;
     }
 
     @Override
     public float getHeight(Renderer2D renderer, FontObject font) {
-        return renderer.measureText(font, "Coords", FONT_SIZE).height + PADDING_V * 2f;
+        return renderer.measureText(FontRegistry.MONTSERRAT, "Coords", FONT_SIZE).height + PADDING_V * 2f;
     }
 
     @Override

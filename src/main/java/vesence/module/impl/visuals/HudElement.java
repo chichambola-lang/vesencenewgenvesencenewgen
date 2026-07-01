@@ -39,7 +39,7 @@ public abstract class HudElement {
 
     public final BooleanSetting blurSetting = new BooleanSetting("Размытие", true);
     public static final BooleanSetting outline = new BooleanSetting("Контур", true);
-    public final SliderSetting scaleSetting = new SliderSetting("Размер", 1.0, 0.5, 2.0, 0.1);
+    public SliderSetting scaleSetting = new SliderSetting("Размер", 1.0, 0.5, 2.0, 0.1);
 
     public static boolean isBlurEnabled() {
         return vesence.module.impl.misc.ClickGui.blurHud.get();
@@ -55,7 +55,7 @@ public abstract class HudElement {
         if (isBlurEnabled()) {
             renderer.blur(x, y, w, h, vesence.module.impl.misc.ClickGui.blurStrengthHud.get().intValue(), corner, alpha);
         }
-        renderer.rect(x, y, w, h, corner, ColorUtil.replAlpha(ColorUtil.BLACK, (int) (125 * alpha)));
+        renderer.rect(x, y, w, h, corner, ColorUtil.replAlpha(ColorUtil.BLACK, ClickGui.hudAlpha.get().floatValue() * alpha));
 
     }
 
@@ -103,26 +103,14 @@ public abstract class HudElement {
     public boolean targetInitialized = false;
     private long lastMoveTime = 0;
 
-    public float jellyScaleX = 1f;
-    public float jellyScaleY = 1f;
-    public float jellyRotation = 0f;
-    private float velX = 0f;
-    private float velY = 0f;
-
     private final Animation2 hoverAnim = new Animation2();
     private final Animation2 pressAnim = new Animation2();
 
-    private static final float OUTLINE_GAP   = 4f;
     private static final float LERP_SPEED = 18f;
-
     private static final float DRAG_LERP_SPEED = 17f;
-    private static final float JELLY_LERP_SPEED = 13f;
-
-    private static final float JELLY_STRETCH = 0.0011f;
-    private static final float JELLY_MAX_STRETCH = 0.34f;
-    private static final float JELLY_TILT = 0.013f;
-    private static final float JELLY_MAX_TILT = 14f;
     private static final float GRID_SNAP = 10f;
+
+    private static final float PRESS_EXPAND = 0.05f;
 
     public HudElement(String name, float defaultX, float defaultY) {
         this.name     = name;
@@ -203,29 +191,38 @@ public abstract class HudElement {
         renderer.drawSquircleOutline(px, py, w, h, squirt, radius, getContourColor(alpha), 1f);
     }
 
-    public void renderInteraction(Renderer2D renderer, FontObject font,
-                                  double mouseX, double mouseY, boolean isPressed) {
+    public void updateInteraction(double mouseX, double mouseY, Renderer2D renderer, FontObject font, boolean isPressed) {
         hoverAnim.update();
         pressAnim.update();
 
         boolean hovered = isHovered(mouseX, mouseY, renderer, font);
         hoverAnim.run(hovered ? 1.0 : 0.0, 0.20, Easings.CUBIC_OUT);
-        pressAnim.run(isPressed ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT);
+        pressAnim.run(isPressed ? 1.0 : 0.0, 0.22, Easings.CUBIC_OUT);
+    }
 
-        float hoverT = hoverAnim.get();
+    public float getExpand() {
+        return 1f + PRESS_EXPAND * (float) pressAnim.get();
+    }
 
-        if (hoverT < 0.005f) return;
+    public void renderHoverOutline(Renderer2D renderer, FontObject font) {
+        float t = (float) hoverAnim.get();
+        if (t < 0.01f) return;
 
-        float w = getEffectiveWidth(renderer, font) - 30;
+        float w = getEffectiveWidth(renderer, font);
         float h = getHeight(renderer, font);
 
-        float lineW = w * hoverT;
-        float lineH = 2.5f;
-        float lineX = x + (w - lineW) / 2f + 15;
-        float lineY = y + h + 7;
+        float pad = 3f + 2f * t;
+        float ox = x - pad;
+        float oy = y - pad;
+        float ow = w + pad * 2f;
+        float oh = h + pad * 2f;
 
-        int alpha = (int) (200 * hoverT);
-        int lineColor = Renderer2D.ColorUtil.swapAlpha(-1, alpha);
+        float corner = vesence.module.impl.misc.ClickGui.getHudCorner() + pad;
+        int base = -1;
+        int glow = ColorUtil.replAlpha(base, (int) (55 * t));
+        int line = ColorUtil.replAlpha(base, (int) (200 * t));
+
+        renderer.gradientOutline(ox, oy, ow, oh, corner, line, line, glow, glow, 1.5f, true);
     }
 
     public boolean isHovered(double mouseX, double mouseY, Renderer2D renderer, FontObject font) {
@@ -290,47 +287,15 @@ public abstract class HudElement {
             targetY = newY;
 
             float dragFactor = 1f - (float) Math.exp(-DRAG_LERP_SPEED * dt);
-            float prevX = x, prevY = y;
             x += (targetX - x) * dragFactor;
             y += (targetY - y) * dragFactor;
-
-            updateJelly(x - prevX, y - prevY, dt);
         } else {
             float factor = 1f - (float) Math.exp(-LERP_SPEED * dt);
-            float prevX = x, prevY = y;
             x += (targetX - x) * factor;
             y += (targetY - y) * factor;
             if (Math.abs(x - targetX) < 0.4f) x = targetX;
             if (Math.abs(y - targetY) < 0.4f) y = targetY;
-
-            updateJelly(x - prevX, y - prevY, dt);
         }
-    }
-
-    private void updateJelly(float dx, float dy, float dt) {
-        if (dt <= 0f) return;
-
-        float instVelX = dx / dt;
-        float instVelY = dy / dt;
-        float velSmooth = 1f - (float) Math.exp(-18f * dt);
-        velX += (instVelX - velX) * velSmooth;
-        velY += (instVelY - velY) * velSmooth;
-
-        float speedX = Math.abs(velX);
-        float speedY = Math.abs(velY);
-
-        float stretchX = Math.min(JELLY_MAX_STRETCH, speedX * JELLY_STRETCH);
-        float stretchY = Math.min(JELLY_MAX_STRETCH, speedY * JELLY_STRETCH);
-
-        float targetScaleX = 1f + stretchX - stretchY * 0.6f;
-        float targetScaleY = 1f + stretchY - stretchX * 0.6f;
-
-        float targetTilt = Math.max(-JELLY_MAX_TILT, Math.min(JELLY_MAX_TILT, -velX * JELLY_TILT));
-
-        float relax = 1f - (float) Math.exp(-JELLY_LERP_SPEED * dt);
-        jellyScaleX += (targetScaleX - jellyScaleX) * relax;
-        jellyScaleY += (targetScaleY - jellyScaleY) * relax;
-        jellyRotation += (targetTilt - jellyRotation) * relax;
     }
 
     public boolean isDragging() {

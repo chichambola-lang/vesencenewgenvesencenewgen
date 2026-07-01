@@ -71,6 +71,15 @@ public class Hud extends Module {
         modernElements.add(new ModernAssistElement());
         modernElements.add(new ModernNotificationsElement());
 
+        for (HudElement modern : modernElements) {
+            for (HudElement def : defaultElements) {
+                if (def.name.equals(modern.name)) {
+                    modern.scaleSetting = def.scaleSetting;
+                    break;
+                }
+            }
+        }
+
         this.addSettings(elements);
 
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
@@ -184,6 +193,24 @@ public class Hud extends Module {
             Notifications.hideExample();
         }
 
+        if (isChatOpen && leftDown && leftJustPressed && !anyElementDragging) {
+            List<HudElement> list = getHudElements();
+            for (int i = list.size() - 1; i >= 0; i--) {
+                HudElement el = list.get(i);
+                if (!elements.get(el.name)) continue;
+                if (el.scaleSetting.sliding || el.isDragging()) continue;
+                if (el.isHovered(mouseX, mouseY, renderer, font)) {
+                    el.onMousePress(mouseX, mouseY, renderer, font);
+                    if (el.isDragging()) {
+                        anyElementDragging = true;
+                        list.remove(i);
+                        list.add(el);
+                    }
+                    break;
+                }
+            }
+        }
+
         for (HudElement element : getHudElements()) {
             boolean enabled = elements.get(element.name);
 
@@ -205,10 +232,9 @@ public class Hud extends Module {
             renderer.pushScale(scale, element.x, element.y);
             renderer.pushAlpha(elemAlpha);
 
-            float jx = element.jellyScaleX;
-            float jy = element.jellyScaleY;
-            float jrot = element.jellyRotation;
-            boolean jelly = Math.abs(jx - 1f) > 0.001f || Math.abs(jy - 1f) > 0.001f || Math.abs(jrot) > 0.02f;
+            element.updateInteraction(mouseX, mouseY, renderer, font, element.isDragging());
+            float expand = element.getExpand();
+            boolean expanding = Math.abs(expand - 1f) > 0.0005f;
 
             float cw = element.getWidth(renderer, font);
             float ch = element.getHeight(renderer, font);
@@ -217,43 +243,32 @@ public class Hud extends Module {
 
             float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
             org.joml.Matrix3x2fStack ctxMatrices = event.drawContext().getMatrices();
-            if (jelly) {
-                renderer.pushScale(jx, jy, centerXfb, centerYfb);
-                renderer.pushRotationAround(jrot, centerXfb, centerYfb);
+            if (expanding) {
+                renderer.pushScale(expand, expand, centerXfb, centerYfb);
 
                 ctxMatrices.pushMatrix();
                 float cgx = centerXfb / guiScale;
                 float cgy = centerYfb / guiScale;
                 ctxMatrices.translate(cgx, cgy);
-                ctxMatrices.rotate((float) Math.toRadians(jrot));
-                ctxMatrices.scale(jx, jy);
+                ctxMatrices.scale(expand, expand);
                 ctxMatrices.translate(-cgx, -cgy);
             }
             element.render(renderer, font, event.viewportWidth(), event.viewportHeight(), event.drawContext());
 
-            element.renderInteraction(renderer, font, mouseX, mouseY, element.isDragging());
-            if (jelly) {
+            element.renderHoverOutline(renderer, font);
+            if (expanding) {
                 ctxMatrices.popMatrix();
-                renderer.popRotation();
                 renderer.popScale();
             }
             renderer.popAlpha();
             renderer.popScale();
 
             if (isChatOpen) {
-                if (leftDown) {
-                    if (!element.isDragging() && !element.scaleSetting.sliding
-                            && leftJustPressed && !anyElementDragging) {
-                        element.onMousePress(mouseX, mouseY, renderer, font);
-                        if (element.isDragging()) anyElementDragging = true;
-                    }
-                    element.onMouseMove(mouseX, mouseY, renderer, font,
-                            event.viewportWidth(), event.viewportHeight());
-                } else {
+                if (!leftDown) {
                     element.onMouseRelease();
-                    element.onMouseMove(mouseX, mouseY, renderer, font,
-                            event.viewportWidth(), event.viewportHeight());
                 }
+                element.onMouseMove(mouseX, mouseY, renderer, font,
+                        event.viewportWidth(), event.viewportHeight());
             } else {
                 if (element.isDragging()) element.onMouseRelease();
                 element.onMouseMove(mouseX, mouseY, renderer, font,
