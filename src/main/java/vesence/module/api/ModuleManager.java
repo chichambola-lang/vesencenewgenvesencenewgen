@@ -33,6 +33,7 @@ public class ModuleManager {
       this.module.add(new vesence.module.impl.visuals.EnchantmentColor());
       this.module.add(new vesence.module.impl.visuals.HitBubbles());
       this.module.add(new vesence.module.impl.visuals.HitMarker());
+      this.module.add(new vesence.module.impl.visuals.HitSound());
       this.module.add(new vesence.module.impl.visuals.CameraClip());
       this.module.add(new vesence.module.impl.visuals.Particles());
       this.module.add(new vesence.module.impl.visuals.ParticularWater());

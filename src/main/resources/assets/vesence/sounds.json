@@ -54,6 +54,66 @@
       "vesence:metallic"
     ]
   },
+  "bell": {
+    "sounds": [
+      "vesence:bell"
+    ]
+  },
+  "krit": {
+    "sounds": [
+      "vesence:krit"
+    ]
+  },
+  "hit1": {
+    "sounds": [
+      "vesence:hit1"
+    ]
+  },
+  "hit2": {
+    "sounds": [
+      "vesence:hit2"
+    ]
+  },
+  "kill1": {
+    "sounds": [
+      "vesence:kill1"
+    ]
+  },
+  "kill2": {
+    "sounds": [
+      "vesence:kill2"
+    ]
+  },
+  "kill3": {
+    "sounds": [
+      "vesence:kill3"
+    ]
+  },
+  "kill4": {
+    "sounds": [
+      "vesence:kill4"
+    ]
+  },
+  "kill5": {
+    "sounds": [
+      "vesence:kill5"
+    ]
+  },
+  "kill6": {
+    "sounds": [
+      "vesence:kill6"
+    ]
+  },
+  "totem_pop_enemy": {
+    "sounds": [
+      "vesence:totem_pop_enemy"
+    ]
+  },
+  "totem_pop_self": {
+    "sounds": [
+      "vesence:totem_pop_self"
+    ]
+  },
   "welcome": {
   "sounds": [
     "vesence:welcome"
