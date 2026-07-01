@@ -784,7 +784,7 @@ public class TargetESP extends Module {
             int b = c & 0xFF;
             int a = (int) (alphaPC * 255.0F);
 
-            float scale = 0.0022F + j / 2500.0F;
+            float scale = 0.005F + j / 2500.0F;
 
             matrices.push();
             matrices.translate(particleX, particleY, particleZ);

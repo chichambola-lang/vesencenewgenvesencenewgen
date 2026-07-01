@@ -3,50 +3,169 @@ package vesence.module.impl.visuals.elements.modern;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
+import org.joml.Matrix3x2fStack;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
-import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.math.animation.anim.util.Easings;
-import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Environment(EnvType.CLIENT)
 public class ModernPotionsElement extends HudElement {
 
-    private static final float PADDING_H = 13;
-    private static final float PADDING_V = 12;
-    private static final float FONT_SIZE = 28;
-    private static final float HEADER_FONT_SIZE = 27;
-    private static final float LINE_HEIGHT = 20;
-    private static final float HEADER_HEIGHT = 17;
-    private static final float ICON_GAP = 6;
-    private static final float ROW_RIGHT_EXTRA_GAP = 5f;
-    private static final float EXTRA_HEIGHT = 14;
+    private static final float HEADER_H = 43f, ROW_H = 43f, ROW_ADVANCE = 50f, HEADER_GAP = 8f;
+    private static final float MIN_WIDTH = 150f, TITLE_SIZE = 31f, NAME_SIZE = 29f, ICON_SIZE = 26f;
 
-    private static final int WHITE_COLOR = 0xFFFFFFFF;
+    private static final class RowState {
+        String name, value;
+        StatusEffectInstance inst;
+        boolean active;
+        final Animation2 anim = new Animation2();
+        final Animation2 slot = new Animation2();
+        RowState() { anim.set(0.0); slot.set(0.0); }
+    }
 
-    private final Map<String, Animation2> effectAnims = new HashMap<>();
-    private final Map<String, Animation2> slotAnims = new HashMap<>();
+    private final Map<String, RowState> rows = new LinkedHashMap<>();
     private final Animation2 visibilityAnim = new Animation2();
-    private final Animation2 heightAnim = new Animation2();
     private final Animation2 widthAnim = new Animation2();
+    private float boundsW = MIN_WIDTH, boundsH = HEADER_H;
 
     public ModernPotionsElement() {
         super("Potions List", 10f, 200f);
         visibilityAnim.set(0.0);
-        widthAnim.set(125.0 + PADDING_H * 2.0);
+        widthAnim.set(MIN_WIDTH);
+    }
+
+    @Override
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        boolean chatOpen = mc.currentScreen instanceof ChatScreen;
+
+        for (RowState st : rows.values()) st.active = false;
+        for (StatusEffectInstance inst : sortedEffects(mc)) {
+            String key = effectName(inst);
+            RowState st = rows.computeIfAbsent(key, k -> new RowState());
+            st.inst = inst;
+            st.name = effectName(inst) + amplifier(inst);
+            st.value = formatDuration(inst);
+            st.active = true;
+        }
+
+        List<String> dead = new ArrayList<>();
+        for (Map.Entry<String, RowState> e : rows.entrySet()) {
+            RowState st = e.getValue();
+            st.anim.update();
+            st.slot.update();
+            st.anim.run(st.active ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT, true);
+            st.slot.run(st.active ? ROW_ADVANCE : 0.0, 0.18, Easings.CUBIC_OUT, true);
+            if (!st.active && st.anim.get() < 0.005 && st.slot.get() < 0.5) dead.add(e.getKey());
+        }
+        for (String k : dead) rows.remove(k);
+
+        boolean shouldShow = chatOpen || !rows.isEmpty();
+        visibilityAnim.update();
+        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT, true);
+        float alpha = (float) visibilityAnim.get();
+        if (alpha < 0.005f) return;
+
+        float titleW = r.measureText(FontRegistry.MONTSERRAT, "Potions", TITLE_SIZE).width;
+        float headerContentW = 13f + titleW + 34f;
+        float maxRowW = 0f, slotSum = 0f;
+        for (RowState st : rows.values()) {
+            float rw = rowWidth(r, st);
+            if (st.anim.get() > 0.01f && rw > maxRowW) maxRowW = rw;
+            slotSum += (float) st.slot.get();
+        }
+        float panelTarget = Math.max(MIN_WIDTH, Math.max(headerContentW, maxRowW));
+        widthAnim.update();
+        widthAnim.run(panelTarget, 0.2, Easings.CUBIC_OUT, true);
+        float panelW = (float) widthAnim.get();
+
+        boolean rightSide = (x + panelW / 2f) > screenWidth / 2f;
+        int theme = Renderer2D.ColorUtil.getClientColor();
+
+        drawHudPanel(r, x, y, panelW, HEADER_H, alpha);
+        r.text(FontRegistry.MONTSERRAT, x + 13, y + 28.5f, TITLE_SIZE, "Potions",
+                ColorUtil.replAlpha(-1, (int) (255 * alpha)), -0.15f);
+        r.textRight(FontRegistry.VESENCE, x + panelW - 10, y + 30, 32, "B", ColorUtil.theme((int) (255 * alpha)));
+
+        float curY = y + HEADER_H + HEADER_GAP;
+        for (RowState st : rows.values()) {
+            float rowAnim = (float) st.anim.get();
+            if (rowAnim < 0.01f) continue;
+
+            float rowW = rowWidth(r, st);
+            float rowAlpha = rowAnim * alpha;
+            float leftEdge = rightSide ? (x + panelW - rowW) : x;
+            float rowX = leftEdge + (rightSide ? 1f : -1f) * (1f - rowAnim) * 12f;
+            float rowTop = curY;
+
+            drawHudPanel(r, rowX, rowTop, rowW, ROW_H, rowAlpha);
+
+            float nameStart = rowX + 55f;
+            r.rect(rowX + 41, rowTop + 14, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * rowAlpha)));
+            drawEffectSprite(ctx, st.inst, rowX + 12, rowTop + (ROW_H - ICON_SIZE) / 2f, ICON_SIZE, rowAlpha);
+
+            r.text(FontRegistry.MONTSERRAT, nameStart, rowTop + 29, NAME_SIZE, st.name,
+                    ColorUtil.replAlpha(-1, (int) (255 * rowAlpha)), -0.1f);
+
+            float nameW = r.measureText(FontRegistry.MONTSERRAT, st.name, NAME_SIZE, -0.1f).width;
+            float valueW = r.measureText(FontRegistry.MONTSERRAT, st.value, NAME_SIZE).width;
+            float boxX = nameStart + nameW + 25f, boxW = valueW + 15f;
+            r.rect(boxX - 14, rowTop + 14, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * rowAlpha)));
+            r.rect(boxX, rowTop + 9, boxW, 26, 5, ColorUtil.replAlpha(theme, (int) (30 * rowAlpha)));
+            r.rectOutline(boxX, rowTop + 9, boxW, 26, 6, ColorUtil.replAlpha(theme, (int) (35 * rowAlpha)), 1);
+            r.textRight(FontRegistry.MONTSERRAT, boxX + boxW - 7, rowTop + 28, NAME_SIZE, st.value,
+                    ColorUtil.replAlpha(theme, (int) (255 * rowAlpha)));
+
+            curY += (float) st.slot.get();
+        }
+
+        boundsW = panelW;
+        boundsH = slotSum < 0.5f ? HEADER_H : (HEADER_H + HEADER_GAP + slotSum + (ROW_H - ROW_ADVANCE));
+    }
+
+    private float rowWidth(Renderer2D r, RowState st) {
+        float nameW = r.measureText(FontRegistry.MONTSERRAT, st.name, NAME_SIZE, -0.1f).width;
+        float valueW = r.measureText(FontRegistry.MONTSERRAT, st.value, NAME_SIZE).width;
+        return 55f + nameW + 25f + valueW + 15f + 9f;
+    }
+
+    private void drawEffectSprite(DrawContext ctx, StatusEffectInstance inst, float px, float py, float size, float alpha) {
+        if (inst == null) return;
+        try {
+            Identifier effId = Registries.STATUS_EFFECT.getId(inst.getEffectType().value());
+            if (effId == null) return;
+            Identifier spriteId = Identifier.of(effId.getNamespace(), "mob_effect/" + effId.getPath());
+
+            float elemScale = getScale();
+            float guiScale = (float) MinecraftClient.getInstance().getWindow().getScaleFactor();
+            float sx = this.x + (px - this.x) * elemScale;
+            float sy = this.y + (py - this.y) * elemScale;
+            float drawSize = size * elemScale;
+
+            Matrix3x2fStack m = ctx.getMatrices();
+            m.pushMatrix();
+            m.translate(sx / guiScale, sy / guiScale);
+            float sc = (drawSize / guiScale) / 18f;
+            m.scale(sc, sc);
+            ctx.drawGuiTexture(RenderPipelines.GUI_TEXTURED, spriteId, 0, 0, 18, 18, alpha);
+            m.popMatrix();
+        } catch (Exception ignored) {}
     }
 
     private String effectName(StatusEffectInstance inst) {
@@ -64,14 +183,7 @@ public class ModernPotionsElement extends HudElement {
 
     private String amplifier(StatusEffectInstance inst) {
         int amp = inst.getAmplifier();
-        if (amp <= 0) return "";
-        return switch (amp) {
-            case 1  -> " 2";
-            case 2  -> " 3";
-            case 3  -> " 4";
-            case 4  -> " 5";
-            default -> " " + (amp + 1);
-        };
+        return amp <= 0 ? "" : " " + (amp + 1);
     }
 
     private List<StatusEffectInstance> sortedEffects(MinecraftClient mc) {
@@ -95,174 +207,11 @@ public class ModernPotionsElement extends HudElement {
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        boolean isChatOpen = mc.currentScreen instanceof ChatScreen;
-
-        List<StatusEffectInstance> effects = sortedEffects(mc);
-
-        float totalSlotHeight = 0f;
-        for (StatusEffectInstance inst : effects) {
-            String key = effectName(inst);
-            Animation2 anim = effectAnims.computeIfAbsent(key, k -> {
-                Animation2 a = new Animation2();
-                a.set(0.0);
-                return a;
-            });
-            anim.update();
-            anim.run(1.0, 0.15, Easings.CUBIC_OUT);
-
-            Animation2 slot = slotAnims.computeIfAbsent(key, k -> {
-                Animation2 a = new Animation2();
-                a.set(0.0);
-                return a;
-            });
-            slot.update();
-            slot.run(LINE_HEIGHT, 0.15, Easings.CUBIC_OUT);
-            totalSlotHeight += slot.get();
-        }
-
-        for (Map.Entry<String, Animation2> entry : effectAnims.entrySet()) {
-            String key = entry.getKey();
-            boolean stillActive = effects.stream().anyMatch(e -> effectName(e).equals(key));
-            if (!stillActive) {
-                entry.getValue().update();
-                entry.getValue().run(0.0, 0.15, Easings.CUBIC_OUT);
-                Animation2 slot = slotAnims.get(key);
-                if (slot != null) {
-                    slot.update();
-                    slot.run(0.0, 0.15, Easings.CUBIC_OUT);
-                    totalSlotHeight += slot.get();
-                }
-            }
-        }
-
-        boolean hasAny = !effects.isEmpty();
-        boolean shouldShow = isChatOpen || hasAny;
-        float extraH = hasAny ? EXTRA_HEIGHT : 0f;
-        float rectH = HEADER_HEIGHT + totalSlotHeight + PADDING_V * 2f + extraH;
-
-        visibilityAnim.update();
-        heightAnim.update();
-        widthAnim.update();
-
-        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.15, Easings.CUBIC_OUT);
-        heightAnim.run(HEADER_HEIGHT + totalSlotHeight + PADDING_V * 2f > 45 ? 1 : 0, 0.15, Easings.CUBIC_OUT);
-
-        float globalAlpha = (float) visibilityAnim.get();
-        if (globalAlpha < 0.005f) return;
-
-        int themeColor = Renderer2D.ColorUtil.getClientColor();
-
-        float maxLineW = 0f;
-        for (StatusEffectInstance inst : effects) {
-            String label = effectName(inst) + amplifier(inst);
-            String dur = formatDuration(inst);
-            float nameW = renderer.measureText(font, label, FONT_SIZE).width;
-            float durW = renderer.measureText(font, dur, FONT_SIZE).width;
-            float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + durW + PADDING_H;
-            if (lineW > maxLineW) maxLineW = lineW;
-        }
-
-        float headerIconW = 20f;
-        float headerTextW = renderer.measureText(FontRegistry.SF_MEDIUM, "Potions", HEADER_FONT_SIZE).width;
-        float headerW = headerIconW + ICON_GAP + headerTextW;
-
-        float contentW = Math.max(135, Math.max(maxLineW, headerW));
-        float autoRectW = contentW + PADDING_H * 2f + 15;
-
-        widthAnim.run(autoRectW, 0.2, Easings.CUBIC_OUT);
-        float rectW = (float) widthAnim.get();
-
-        drawHudPanel(renderer, x, y, rectW, rectH, globalAlpha);
-
-        int theme = Renderer2D.ColorUtil.getClientColor1();
-        renderer.rect(x, y + 40, rectW, 1.25f, ColorUtil.replAlpha(-1, (int) (12 * heightAnim.get())));
-
-        float curY = y + PADDING_V + 12;
-        renderer.text(FontRegistry.VESENCE, x + 11, curY + 3.5f, 42, "B", ColorUtil.replAlpha(theme, globalAlpha));
-        renderer.text(FontRegistry.SF_MEDIUM, x + 39, curY + 3, 30.5f, "Potions", ColorUtil.getColor(255, globalAlpha));
-
-        curY += HEADER_HEIGHT;
-
-        renderer.pushClipRect(x, y, rectW, rectH);
-        for (StatusEffectInstance inst : effects) {
-            String key = effectName(inst);
-            Animation2 anim = effectAnims.get(key);
-            Animation2 slot = slotAnims.get(key);
-            if (anim == null || slot == null || (anim.get() < 0.01 && slot.get() < 0.5)) continue;
-
-            float modAlpha = (float) (anim.get() * globalAlpha);
-            int modTextAlpha = (int) (255 * modAlpha);
-
-            String durStr = formatDuration(inst);
-
-            int nameColor = (modTextAlpha << 24) | (WHITE_COLOR & 0x00FFFFFF);
-            int durColor = (modTextAlpha << 24) | (themeColor & 0x00FFFFFF);
-
-            renderer.text(FontRegistry.SF_MEDIUM, x + 11 + modAlpha * 15 - 15, curY + 22, 29.5f, effectName(inst) + ColorFormat.color(255,139,139) + amplifier(inst) + ColorFormat.reset(), nameColor, -0.1f);
-
-            float bindX = x + rectW - 12;
-            vesence.utils.render.text.AnimatedText.draw(renderer, FontRegistry.SF_MEDIUM,
-                  "mpot_" + effectName(inst), durStr, bindX - modAlpha * 15 + 15, curY + 22, 29.5f,
-                  durColor, vesence.utils.render.text.AnimatedText.ALIGN_RIGHT);
-
-            curY += (float) slot.get();
-        }
-        for (Map.Entry<String, Animation2> entry : slotAnims.entrySet()) {
-            String key = entry.getKey();
-            boolean stillActive = effects.stream().anyMatch(e -> effectName(e).equals(key));
-            if (!stillActive) {
-                curY += (float) entry.getValue().get();
-            }
-        }
-        renderer.popClipRect();
-    }
+    public float getEffectiveWidth(Renderer2D r, FontObject font) { return boundsW; }
 
     @Override
-    public float getEffectiveWidth(Renderer2D renderer, FontObject font) {
-        return (float) widthAnim.get();
-    }
+    public float getWidth(Renderer2D r, FontObject font) { return boundsW; }
 
     @Override
-    public float getWidth(Renderer2D renderer, FontObject font) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        List<StatusEffectInstance> effects = sortedEffects(mc);
-        float maxLineW = 0f;
-        for (StatusEffectInstance inst : effects) {
-            String label = effectName(inst) + amplifier(inst);
-            String dur = formatDuration(inst);
-            float nameW = renderer.measureText(font, label, FONT_SIZE).width;
-            float durW = renderer.measureText(font, dur, FONT_SIZE).width;
-            float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + durW + PADDING_H;
-            if (lineW > maxLineW) maxLineW = lineW;
-        }
-        float headerTextW = renderer.measureText(FontRegistry.SF_MEDIUM, "Potions", HEADER_FONT_SIZE).width;
-        float headerW = headerTextW + 55f;
-        float contentW = Math.max(135, Math.max(maxLineW, headerW));
-        return contentW + PADDING_H * 2f + 15;
-    }
-
-    @Override
-    public float getHeight(Renderer2D renderer, FontObject font) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        List<StatusEffectInstance> effects = sortedEffects(mc);
-        float totalSlotHeight = 0;
-        boolean hasAny = false;
-        for (StatusEffectInstance inst : effects) {
-            String key = effectName(inst);
-            Animation2 slot = slotAnims.get(key);
-            if (slot != null) {
-                float sh = (float) slot.get();
-                totalSlotHeight += sh;
-                if (sh > 0.5f) hasAny = true;
-            } else {
-                totalSlotHeight += LINE_HEIGHT;
-                hasAny = true;
-            }
-        }
-        if (!hasAny && totalSlotHeight < 0.5f) return HEADER_HEIGHT + PADDING_V * 2f;
-        float extraH = hasAny ? EXTRA_HEIGHT : 0f;
-        return HEADER_HEIGHT + totalSlotHeight + PADDING_V * 2f + extraH;
-    }
+    public float getHeight(Renderer2D r, FontObject font) { return boundsH; }
 }

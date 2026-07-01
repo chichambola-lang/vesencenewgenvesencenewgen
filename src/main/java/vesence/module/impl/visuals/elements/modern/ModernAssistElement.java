@@ -17,6 +17,7 @@ import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
 import vesence.utils.render.text.FontObject;
 import org.lwjgl.glfw.GLFW;
+import vesence.utils.render.text.FontRegistry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +26,10 @@ import java.util.Locale;
 @Environment(EnvType.CLIENT)
 public class ModernAssistElement extends HudElement {
 
-    private static final float PANEL_SIZE = 60;
+    private static final float PANEL_SIZE = 80;
     private static final float PANEL_GAP = 8;
     private static final float PANEL_PADDING = 4;
-    private static final float FONT_SIZE = 18;
+    private static final float FONT_SIZE = 30;
     private static final int WHITE_COLOR = 0xFFFFFFFF;
 
     public ModernAssistElement() {
@@ -50,17 +51,18 @@ public class ModernAssistElement extends HudElement {
         float elemScale = getScale();
 
         for (BoundItem item : boundItems) {
-            drawHudPanel(renderer, curX, y, PANEL_SIZE, PANEL_SIZE, 1f);
+            float pw = panelWidth(renderer, item);
+            drawHudPanel(renderer, curX, y, pw, 40, 1f);
 
             float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
 
-            float panelCenterX = curX + 30;
-            float panelCenterY = y + 30;
+            float panelCenterX = curX + 20;
+            float panelCenterY = y + 21;
             float scaledCenterX = this.x + (panelCenterX - this.x) * elemScale;
             float scaledCenterY = this.y + (panelCenterY - this.y) * elemScale;
             float centerX = scaledCenterX / guiScale;
             float centerY = scaledCenterY / guiScale;
-            float itemScale = 0.85f * elemScale;
+            float itemScale = 0.8f * elemScale;
 
             ctx.getMatrices().pushMatrix();
             ctx.getMatrices().translate(centerX, centerY);
@@ -69,19 +71,26 @@ public class ModernAssistElement extends HudElement {
             ctx.getMatrices().popMatrix();
 
             String countStr = String.valueOf(item.totalCount);
-            float countTextH = renderer.measureText(font, countStr, FONT_SIZE).height;
+            float countTextH = renderer.measureText(FontRegistry.MONTSERRAT, countStr, FONT_SIZE).height;
             float countX = curX + 6;
             float countY = y + 6 + countTextH * 0.7f;
-            renderer.text(font, countX, countY, FONT_SIZE, countStr, WHITE_COLOR);
+            renderer.text(FontRegistry.MONTSERRAT, countX, countY, FONT_SIZE, countStr, WHITE_COLOR);
 
-                float bindW = renderer.measureText(font, item.bindKey, FONT_SIZE).width;
-                float bindTextH = renderer.measureText(font, item.bindKey, FONT_SIZE).height;
-                float bindX = curX + PANEL_SIZE - bindW - 6;
-                float bindY = y + PANEL_SIZE - 6 - bindTextH * 0.3f;
-                renderer.text(font, bindX, bindY, FONT_SIZE, item.bindKey, WHITE_COLOR);
+            float bindW = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).width;
+            float bindTextH = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).height;
+            float bindX = curX + pw - bindW - 6;
+            float bindY = y + PANEL_SIZE - 12 - bindTextH * 0.3f;
+            renderer.text(FontRegistry.MONTSERRAT, bindX, bindY, FONT_SIZE, item.bindKey, WHITE_COLOR);
 
-            curX += PANEL_SIZE + PANEL_GAP;
+            curX += pw + PANEL_GAP;
         }
+    }
+
+    private float panelWidth(Renderer2D renderer, BoundItem item) {
+        float countW = renderer.measureText(FontRegistry.MONTSERRAT, String.valueOf(item.totalCount), FONT_SIZE).width;
+        float bindW = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).width;
+        float leftW = Math.max(34f, 6f + countW);
+        return leftW + 8f + bindW + 8f;
     }
 
     @Override
@@ -95,12 +104,16 @@ public class ModernAssistElement extends HudElement {
         List<BoundItem> boundItems = getBoundItemsFromAssist(mc, assist);
         if (boundItems.isEmpty()) return PANEL_SIZE;
 
-        return boundItems.size() * PANEL_SIZE + (boundItems.size() - 1) * PANEL_GAP;
+        float total = 0f;
+        for (BoundItem item : boundItems) {
+            total += panelWidth(renderer, item) + PANEL_GAP;
+        }
+        return Math.max(0f, total - PANEL_GAP);
     }
 
     @Override
     public float getHeight(Renderer2D renderer, FontObject font) {
-        return PANEL_SIZE;
+        return 40;
     }
 
     private List<BoundItem> getBoundItemsFromAssist(MinecraftClient mc, Assist assist) {
@@ -142,9 +155,14 @@ public class ModernAssistElement extends HudElement {
         int totalCount = countItemsInInventory(mc, nameSubstring, item);
         if (totalCount == 0) return;
 
-        String bindKey = getKeyName(bind.key);
+        String keyName = getKeyName(bind.key);
+        String bindKey = isMouseButtonName(keyName) ? keyName : keyName + " + \u041C";
 
         items.add(new BoundItem(stack, bindKey, totalCount));
+    }
+
+    private boolean isMouseButtonName(String name) {
+        return name.equals("LMB") || name.equals("RMB") || name.equals("MMB");
     }
 
     private int findItemSlot(MinecraftClient mc, String nameSubstring, Item fallbackItem) {

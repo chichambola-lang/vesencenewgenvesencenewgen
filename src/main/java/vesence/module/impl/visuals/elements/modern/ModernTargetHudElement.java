@@ -17,6 +17,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.SkinTextures;
 import net.minecraft.util.Identifier;
+import vesence.hmi.script_wrappers.C;
 import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.module.api.setting.impl.ModeSetting;
 import vesence.module.impl.combat.AttackAura;
@@ -47,9 +48,10 @@ public class ModernTargetHudElement extends HudElement {
     private static final float HEAD_ROUND = 9;
     private static final float RECT_W     = 190;
     private static final float RECT_H     = 70;
-    private static final float EQUIP_ICON_SIZE = 9;
+    private static final float BAR_RECT_W = 235;
+    private static final float EQUIP_ICON_SIZE = 10;
     private static final float EQUIP_SLOT_SIZE = 17f;
-    private static final float EQUIP_GAP = 4f;
+    private static final float EQUIP_GAP = 6;
     private static final float EQUIP_ROUND = 5f;
     private static final int EQUIP_SLOTS = 6;
 
@@ -191,7 +193,7 @@ public class ModernTargetHudElement extends HudElement {
         int white = 0xFFFFFFFF;
 
         widthAnim.run(RECT_W, 0.3, Easings.SINE_OUT);
-        float rectW = 235;
+        float rectW = BAR_RECT_W;
         float rectH = RECT_H;
 
         r.pushAlpha(globalAlpha);
@@ -389,28 +391,25 @@ public class ModernTargetHudElement extends HudElement {
         r.popScale();
         r.popAlpha();
     }
-    private void drawEquipmentRow(Renderer2D r, DrawContext ctx, float startX, float availableWidth, float y, float alpha, float scale, float elemScale) {
-        if (cachedEquipmentItems.isEmpty() || scale <= 0.01f) return;
+    private void drawEquipmentRow(Renderer2D r, DrawContext ctx, float startX, float availableWidth, float y, float alpha, float appear, float elemScale) {
+        int count = cachedEquipmentItems.size();
+        if (count == 0 || appear <= 0.01f) return;
 
-        float totalWidth = EQUIP_SLOTS * EQUIP_SLOT_SIZE + (EQUIP_SLOTS - 1) * EQUIP_GAP;
-        float drawX = startX + Math.max(0f, (availableWidth - totalWidth) / 2f);
-        float centerX = drawX + totalWidth / 2f;
-        float centerY = y + EQUIP_SLOT_SIZE / 2f;
+        float bgWidth = count * EQUIP_SLOT_SIZE + (count - 1) * EQUIP_GAP;
+        float drawX = startX + Math.max(0f, (availableWidth) / 2f);
 
-        for (int i = 0; i < cachedEquipmentItems.size(); i++) {
-            float slotX = drawX + i * (EQUIP_SLOT_SIZE + EQUIP_GAP);
+        drawHudPanel(r, x, y - 15, bgWidth + 22, 35, alpha * appear);
+
+        if (appear <= 0.5f) return;
+        for (int i = 0; i < count; i++) {
+            float slotX = x + i * (EQUIP_SLOT_SIZE + EQUIP_GAP) + 4;
             ItemStack stack = cachedEquipmentItems.get(i);
-            float scaledSlotX = scaleAround(slotX, centerX, scale);
-            float scaledSlotY = scaleAround(y, centerY, scale);
-            float scaledSlotSize = EQUIP_SLOT_SIZE * scale;
-            float scaledIconSize = EQUIP_ICON_SIZE * scale * elemScale;
-
+            float iconSize = EQUIP_ICON_SIZE * elemScale;
             boolean isArmor = i >= 1 && i <= 4;
-
             drawHudItem(r, ctx, stack,
-                    scaledSlotX + (scaledSlotSize - scaledIconSize) / 2f,
-                    scaledSlotY + (scaledSlotSize - scaledIconSize) / 2f,
-                    scaledIconSize, elemScale, isArmor);
+                    slotX + (EQUIP_SLOT_SIZE - iconSize) / 2f,
+                    y + (EQUIP_SLOT_SIZE - iconSize) / 2f - 4.5f,
+                    iconSize, elemScale, isArmor);
         }
     }
 
@@ -466,17 +465,13 @@ public class ModernTargetHudElement extends HudElement {
         ctx.fill(bx, by, bx + barStep, by + 1, 0xFF000000 | barColor);
     }
 
-    private float scaleAround(float value, float center, float scale) {
-        return center + (value - center) * scale;
-    }
-
     @Override
     public float getEffectiveWidth(Renderer2D r, FontObject font) {
-        return (float) widthAnim.get();
+        return BAR_RECT_W;
     }
 
     @Override
-    public float getWidth(Renderer2D r, FontObject font) { return RECT_W; }
+    public float getWidth(Renderer2D r, FontObject font) { return BAR_RECT_W; }
 
     @Override
     public float getHeight(Renderer2D r, FontObject font) { return RECT_H; }

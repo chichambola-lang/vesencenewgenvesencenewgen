@@ -5,232 +5,150 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.util.Identifier;
 import vesence.Vesence;
-import vesence.hmi.script_wrappers.C;
 import vesence.module.api.Module;
 import vesence.module.impl.visuals.HudElement;
-import vesence.module.api.setting.impl.BooleanSetting;
 import vesence.renderengine.render.Renderer2D;
-
 import vesence.utils.other.KeyUtil;
-import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
-import vesence.utils.render.ResourceManager;
 import vesence.utils.render.math.animation.anim.util.Animation2;
 import vesence.utils.render.math.animation.anim.util.Easings;
-import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
 import vesence.utils.render.text.FontRegistry;
 import vesence.utils.render.ttf.TtfFonts;
 
-import java.awt.*;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Environment(EnvType.CLIENT)
 public class ModernKeybindsElement extends HudElement {
 
-    private static final float PADDING_H = 13;
-    private static final float PADDING_V = 12;
-    private static final float FONT_SIZE = 28;
-    private static final float HEADER_FONT_SIZE = 27;
-    private static final float LINE_HEIGHT = 50;
-    private static final float HEADER_HEIGHT = 17;
-    private static final float ICON_GAP = 6;
-    private static final float ROW_RIGHT_EXTRA_GAP = 5f;
-    private static final int WHITE_COLOR = 0xFFFFFFFF;
-    private static final float EXTRA_HEIGHT = 14;
+    private static final float HEADER_H = 43f, ROW_H = 43f, ROW_ADVANCE = 50f, HEADER_GAP = 8f;
+    private static final float MIN_WIDTH = 150f, TITLE_SIZE = 31f, NAME_SIZE = 29f;
 
-    private final Map<String, Animation2> moduleAnims = new HashMap<>();
-    private final Map<String, Animation2> slotAnims = new HashMap<>();
+    private static final class RowState {
+        String name, value, glyph;
+        boolean active;
+        final Animation2 anim = new Animation2();
+        final Animation2 slot = new Animation2();
+        RowState() { anim.set(0.0); slot.set(0.0); }
+    }
+
+    private final Map<String, RowState> rows = new LinkedHashMap<>();
     private final Animation2 visibilityAnim = new Animation2();
-    private final Animation2 heightAnim = new Animation2();
     private final Animation2 widthAnim = new Animation2();
+    private float boundsW = MIN_WIDTH, boundsH = HEADER_H;
 
     public ModernKeybindsElement() {
         super("Keybinds", 10f, 80f);
         visibilityAnim.set(0.0);
-        widthAnim.set(125.0 + PADDING_H * 2.0);
+        widthAnim.set(MIN_WIDTH);
     }
 
     @Override
-    public void render(Renderer2D renderer, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        boolean isChatOpen = mc.currentScreen instanceof ChatScreen;
+    public void render(Renderer2D r, FontObject font, int screenWidth, int screenHeight, DrawContext ctx) {
+        boolean chatOpen = MinecraftClient.getInstance().currentScreen instanceof ChatScreen;
 
-        float totalSlotHeight = 0;
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind == -1) continue;
-
-            Animation2 anim = moduleAnims.computeIfAbsent(mod.name, k -> {
-                Animation2 a = new Animation2();
-                a.set(0.0);
-                return a;
-            });
-            anim.update();
-            anim.run(mod.enable ? 1.0 : 0.0, 0.15, Easings.CUBIC_OUT);
-
-            Animation2 slot = slotAnims.computeIfAbsent(mod.name, k -> {
-                Animation2 a = new Animation2();
-                a.set(0.0);
-                return a;
-            });
-            slot.update();
-            slot.run(mod.enable ? LINE_HEIGHT : 0.0, 0.15, Easings.CUBIC_OUT);
-            totalSlotHeight += slot.get();
-        }
-
-        int enabledCount = 0;
-        int enabledCountTest = 0;
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind != -1 && mod.enable) enabledCount++;
-        }
-        boolean hasAnyBind = enabledCount > 0;
-        boolean hasAnyBindTest = enabledCount > 0;
-
-        boolean shouldShow = isChatOpen || hasAnyBind;
-        float extraH = hasAnyBind ? EXTRA_HEIGHT : 0f;
-        float rectH = HEADER_HEIGHT + totalSlotHeight + PADDING_V * 2f + extraH;
-
-        visibilityAnim.update();
-        heightAnim.update();
-        widthAnim.update();
-        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.15, Easings.CUBIC_OUT);
-        heightAnim.run(hasAnyBindTest ? 1 : 0, 0.15, Easings.CUBIC_OUT);
-
-        float globalAlpha = visibilityAnim.get();
-        if (globalAlpha < 0.005) return;
-
-        int themeColor = Renderer2D.ColorUtil.getClientColor();
-
-        String headerText = "Keybinds";
-
-        float maxLineW = 0;
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind == -1 || !mod.enable) continue;
-            float nameW = renderer.measureText(font, mod.name, FONT_SIZE).width;
-            float bindW = renderer.measureText(font, KeyUtil.getKey(mod.bind), FONT_SIZE).width;
-            float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + bindW + PADDING_H;
-            if (lineW > maxLineW) maxLineW = lineW;
-        }
-
-        float headerIconW = 20f;
-        float headerTextW = renderer.measureText(FontRegistry.SF_MEDIUM, headerText, HEADER_FONT_SIZE).width;
-        float headerW = headerIconW + ICON_GAP + headerTextW;
-
-        float contentW = Math.max(150, Math.max(maxLineW, headerW));
-        float autoRectW = contentW + PADDING_H * 2f + 15;
-
-        widthAnim.run(autoRectW, 0.2, Easings.CUBIC_OUT);
-        float rectW = (float) widthAnim.get();
-        drawHudPanel(renderer, x, y, rectW, 43, globalAlpha);
-
-        int theme = Renderer2D.ColorUtil.getClientColor1();
-        float curY = y + PADDING_V + 12;
-        TtfFonts.LOX.drawRightString(renderer, "d", x + rectW - 11, curY - 12, 20, ColorUtil.theme((int) (255 * globalAlpha)));
-        renderer.text(FontRegistry.MONTSERRAT, x + 13, curY + 4.5f, 31, "Key" + ColorFormat.color(ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), globalAlpha)) + "binds", ColorUtil.replAlpha(-1, globalAlpha));
-        curY += HEADER_HEIGHT;
-
-        java.util.List<Float> bindWidths = new java.util.ArrayList<>();
-        java.util.List<Float> bindHeights = new java.util.ArrayList<>();
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind == -1) continue;
-            Animation2 anim2 = moduleAnims.get(mod.name);
-            Animation2 slot2 = slotAnims.get(mod.name);
-            if (anim2 == null || slot2 == null || anim2.get() < 0.01) continue;
-            float slotH2 = slot2.get();
-            if (slotH2 < 0.5f) continue;
-
-            String bs = KeyUtil.getKey(mod.bind);
-            float bw = renderer.measureText(FontRegistry.MONTSERRAT, bs, 28).width + 14;
-
-            Animation2 rowWAnim = moduleAnims.computeIfAbsent("_bw_" + mod.name, k -> new Animation2());
-            rowWAnim.update();
-            rowWAnim.run(bw, 0.15, Easings.CUBIC_OUT);
-
-            bindWidths.add(rowWAnim.get());
-            bindHeights.add(slotH2 + 3);
-        }
-
-        if (!bindWidths.isEmpty()) {
-            float[] ws = new float[bindWidths.size()];
-            float[] hs = new float[bindHeights.size() ];
-            for (int i = 0; i < ws.length; i++) { ws[i] = bindWidths.get(i); hs[i] = bindHeights.get(i); }
-
-            float corner = vesence.module.impl.misc.ClickGui.getHudCorner() * 0.6f;
-            int bindBgColor = ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int)(255 * globalAlpha));
-        }
-
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind == -1) continue;
-            Animation2 anim = moduleAnims.get(mod.name);
-            Animation2 slot = slotAnims.get(mod.name);
-            if (anim == null || slot == null || (anim.get() < 0.01 && slot.get() < 0.5)) continue;
-
-            float modAlpha = anim.get() * globalAlpha;
-            int modTextAlpha = (int)(255 * modAlpha);
-
-            String modName = mod.name;
-            String bindStr = KeyUtil.getKey(mod.bind);
-
-            int nameColor = (modTextAlpha << 24) | (WHITE_COLOR & 0x00FFFFFF);
-            int bindColor = (modTextAlpha << 24) | (themeColor & 0x00FFFFFF);
-            drawHudPanel(renderer, x + modAlpha * 10 - 10, curY + 10, renderer.measureText(FontRegistry.MONTSERRAT, modName + bindStr, 29).width + 104, 43, modAlpha);
-            renderer.rect(x + 41 + modAlpha * 10 - 10, curY + 24, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * modAlpha)));
-            renderer.text(FontRegistry.MON, x + 13 + modAlpha * 10 - 10, curY + 41, 35, mod.category.getIcon(), bindColor, -0.1f);
-            renderer.text(FontRegistry.MONTSERRAT, x + 55 + modAlpha * 10 - 10, curY + 39 , 29, modName, nameColor, -0.1f);
-            renderer.rect(x + 41 + modAlpha * 10 - 10 + renderer.measureText(FontRegistry.MONTSERRAT, modName, 29).width + 25, curY + 24, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * modAlpha)));
-            float bindX = x + renderer.measureText(FontRegistry.MONTSERRAT, modName + bindStr, 29).width + 88;
-            renderer.rect(x + renderer.measureText(FontRegistry.MONTSERRAT, modName, 29).width + 80 + modAlpha * 10 - 10, curY + 19,
-                    renderer.measureText(FontRegistry.MONTSERRAT, bindStr, 29).width + 15, 26, 5, ColorUtil.theme((int) (30 * modAlpha)));
-            renderer.rectOutline(x + renderer.measureText(FontRegistry.MONTSERRAT, modName, 29).width + 80 + modAlpha * 10 - 10, curY + 19,
-                    renderer.measureText(FontRegistry.MONTSERRAT, bindStr, 29).width + 15, 26, 6, ColorUtil.theme((int) (30 * modAlpha)), 1);
-            renderer.textRight(FontRegistry.MONTSERRAT, bindX + modAlpha * 10 - 10, curY + 38, 29, bindStr, bindColor);
-
-            curY += slot.get();
-        }
-    }
-
-    @Override
-    public float getEffectiveWidth(Renderer2D renderer, FontObject font) {
-        return (float) widthAnim.get();
-    }
-
-    @Override
-    public float getWidth(Renderer2D renderer, FontObject font) {
-        float maxLineW = 0;
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind == -1 || !mod.enable) continue;
-            float nameW = renderer.measureText(font, mod.name, FONT_SIZE).width;
-            float bindW = renderer.measureText(font, KeyUtil.getKey(mod.bind), FONT_SIZE).width;
-            float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + bindW + PADDING_H;
-            if (lineW > maxLineW) maxLineW = lineW;
-        }
-        float headerTextW = renderer.measureText(FontRegistry.SF_MEDIUM, "Keybinds", HEADER_FONT_SIZE).width;
-        float headerW = headerTextW + 55f;
-        float contentW = Math.max(135, Math.max(maxLineW, headerW));
-        return contentW + PADDING_H * 2f + 15;
-    }
-
-    @Override
-    public float getHeight(Renderer2D renderer, FontObject font) {
-        float totalSlotHeight = 0;
-        boolean hasAnyBind = false;
-        for (Module mod : Vesence.get.manager.getModules()) {
-            if (mod.bind == -1) continue;
-            Animation2 slot = slotAnims.get(mod.name);
-            if (slot != null) {
-                float sh = (float) slot.get();
-                totalSlotHeight += sh;
-                if (sh > 0.5f) hasAnyBind = true;
-            } else if (mod.enable) {
-                totalSlotHeight += LINE_HEIGHT;
-                hasAnyBind = true;
+        for (RowState st : rows.values()) st.active = false;
+        if (Vesence.get != null && Vesence.get.manager != null) {
+            for (Module mod : Vesence.get.manager.getModules()) {
+                if (mod.bind == -1 || !mod.enable) continue;
+                RowState st = rows.computeIfAbsent(mod.name, k -> new RowState());
+                st.name = mod.name;
+                st.value = KeyUtil.getKey(mod.bind);
+                st.glyph = mod.category.getIcon();
+                st.active = true;
             }
         }
-        if (!hasAnyBind && totalSlotHeight < 0.5f) return HEADER_HEIGHT + PADDING_V * 2f;
-        float extraH = hasAnyBind ? EXTRA_HEIGHT : 0f;
-        return HEADER_HEIGHT + totalSlotHeight + PADDING_V * 2f + extraH;
+
+        List<String> dead = new ArrayList<>();
+        for (Map.Entry<String, RowState> e : rows.entrySet()) {
+            RowState st = e.getValue();
+            st.anim.update();
+            st.slot.update();
+            st.anim.run(st.active ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT, true);
+            st.slot.run(st.active ? ROW_ADVANCE : 0.0, 0.18, Easings.CUBIC_OUT, true);
+            if (!st.active && st.anim.get() < 0.005 && st.slot.get() < 0.5) dead.add(e.getKey());
+        }
+        for (String k : dead) rows.remove(k);
+
+        boolean shouldShow = chatOpen || !rows.isEmpty();
+        visibilityAnim.update();
+        visibilityAnim.run(shouldShow ? 1.0 : 0.0, 0.18, Easings.CUBIC_OUT, true);
+        float alpha = (float) visibilityAnim.get();
+        if (alpha < 0.005f) return;
+
+        float titleW = r.measureText(FontRegistry.MONTSERRAT, "Keybinds", TITLE_SIZE).width;
+        float headerContentW = 13f + titleW + 34f;
+        float maxRowW = 0f, slotSum = 0f;
+        for (RowState st : rows.values()) {
+            float rw = rowWidth(r, st);
+            if (st.anim.get() > 0.01f && rw > maxRowW) maxRowW = rw;
+            slotSum += (float) st.slot.get();
+        }
+        float panelTarget = Math.max(MIN_WIDTH, Math.max(headerContentW, maxRowW));
+        widthAnim.update();
+        widthAnim.run(panelTarget, 0.2, Easings.CUBIC_OUT, true);
+        float panelW = (float) widthAnim.get();
+
+        boolean rightSide = (x + panelW / 2f) > screenWidth / 2f;
+        int theme = Renderer2D.ColorUtil.getClientColor();
+
+        drawHudPanel(r, x, y, panelW, HEADER_H, alpha);
+        r.text(FontRegistry.MONTSERRAT, x + 13, y + 28.5f, TITLE_SIZE, "Keybinds",
+                ColorUtil.replAlpha(-1, (int) (255 * alpha)), -0.15f);
+        TtfFonts.LOX.drawRightString(r, "d", x + panelW - 11, y + 12, 20, ColorUtil.theme((int) (255 * alpha)));
+
+        float curY = y + HEADER_H + HEADER_GAP;
+        for (RowState st : rows.values()) {
+            float rowAnim = (float) st.anim.get();
+            if (rowAnim < 0.01f) continue;
+
+            float rowW = rowWidth(r, st);
+            float rowAlpha = rowAnim * alpha;
+            float leftEdge = rightSide ? (x + panelW - rowW) : x;
+            float rowX = leftEdge + (rightSide ? 1f : -1f) * (1f - rowAnim) * 12f;
+            float rowTop = curY;
+
+            drawHudPanel(r, rowX, rowTop, rowW, ROW_H, rowAlpha);
+
+            float nameStart = rowX + 55f;
+            r.rect(rowX + 41, rowTop + 14, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * rowAlpha)));
+            r.text(FontRegistry.MON, rowX + 13, rowTop + 31, 35, st.glyph,
+                    ColorUtil.replAlpha(theme, (int) (255 * rowAlpha)), -0.1f);
+            r.text(FontRegistry.MONTSERRAT, nameStart, rowTop + 29, NAME_SIZE, st.name,
+                    ColorUtil.replAlpha(-1, (int) (255 * rowAlpha)), -0.1f);
+
+            float nameW = r.measureText(FontRegistry.MONTSERRAT, st.name, NAME_SIZE, -0.1f).width;
+            float valueW = r.measureText(FontRegistry.MONTSERRAT, st.value, NAME_SIZE).width;
+            float boxX = nameStart + nameW + 25f, boxW = valueW + 15f;
+            r.rect(boxX - 14, rowTop + 14, 1, 18, ColorUtil.replAlpha(-1, (int) (25 * rowAlpha)));
+            r.rect(boxX, rowTop + 9, boxW, 26, 5, ColorUtil.replAlpha(theme, (int) (30 * rowAlpha)));
+            r.rectOutline(boxX, rowTop + 9, boxW, 26, 6, ColorUtil.replAlpha(theme, (int) (35 * rowAlpha)), 1);
+            r.textRight(FontRegistry.MONTSERRAT, boxX + boxW - 7, rowTop + 28, NAME_SIZE, st.value,
+                    ColorUtil.replAlpha(theme, (int) (255 * rowAlpha)));
+
+            curY += (float) st.slot.get();
+        }
+
+        boundsW = panelW;
+        boundsH = slotSum < 0.5f ? HEADER_H : (HEADER_H + HEADER_GAP + slotSum + (ROW_H - ROW_ADVANCE));
     }
+
+    private float rowWidth(Renderer2D r, RowState st) {
+        float nameW = r.measureText(FontRegistry.MONTSERRAT, st.name, NAME_SIZE, -0.1f).width;
+        float valueW = r.measureText(FontRegistry.MONTSERRAT, st.value, NAME_SIZE).width;
+        return 55f + nameW + 25f + valueW + 15f + 9f;
+    }
+
+    @Override
+    public float getEffectiveWidth(Renderer2D r, FontObject font) { return boundsW; }
+
+    @Override
+    public float getWidth(Renderer2D r, FontObject font) { return boundsW; }
+
+    @Override
+    public float getHeight(Renderer2D r, FontObject font) { return boundsH; }
 }

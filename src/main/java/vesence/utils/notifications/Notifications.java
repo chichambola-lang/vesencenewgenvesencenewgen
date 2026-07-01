@@ -40,6 +40,8 @@ public class Notifications {
     public static final BooleanSetting mentionAlert = new BooleanSetting("Упоминание в чате", true);
     public static final BooleanSetting potionAlert = new BooleanSetting("Окончание зелий", true);
 
+    private static boolean nextFromLeft = true;
+
     public static void add(String text) {
         active.add(new Notification(text, (long) (1.5 * 1000)));
     }
@@ -134,7 +136,7 @@ public class Notifications {
 
         for (int i = 0; i < list.size(); i++) {
             Notification n = list.get(i);
-            float textW = renderer.measureText(FontRegistry.SF_MEDIUM, n.text, FS).width;
+            float textW = renderer.measureText(FontRegistry.MONTSERRAT, n.text, FS).width;
             heights[i] = FS + padV * 2;
 
             if (n.isToggle) {
@@ -149,7 +151,7 @@ public class Notifications {
             }
         }
 
-        float targetY = topY;
+        float targetY = 0f;
         float maxW = 0;
         float totalH = 0;
         for (int i = 0; i < list.size(); i++) {
@@ -181,17 +183,15 @@ public class Notifications {
             float w = n.width;
             float h = 34 * scale;
             float animY = (float) n.yAnim.get();
-            float drawY = animY;
+            float drawY = topY + animY;
+
+            float slideDir = n.fromLeft ? -1f : 1f;
+            float slideDist = 45f * scale;
+            float xOffset = (1f - alpha) * slideDist * slideDir;
+            float cx = centerX + xOffset;
 
             renderer.pushAlpha(alpha);
-            if (HudElement.isBlurEnabled()) {
-                renderer.blurSquircle(centerX - w / 2f, drawY, w, h, 25, 3, BorderRadius.all(15 * scale), alpha);
-            }
-            renderer.drawSquircle(centerX - w / 2f, drawY, w, h, 3, BorderRadius.all(15 * scale),
-                    ColorUtil.getColor(0, (int) (HudElement.isBlurEnabled() ? 155 * alpha : 255 * alpha)));
-            if (Hud.contour.get()) {
-                renderer.drawSquircleOutline(centerX - w / 2f, drawY, w, h, 3, BorderRadius.all(15 * scale), HudElement.getGlobalContourColor(alpha), 1f);
-            }
+            HudElement.drawHudPanel(renderer, cx - w / 2f, drawY, w, h, alpha);
             renderer.popAlpha();
 
             float textY = drawY + (h + FS) / 2f - 8 * scale;
@@ -199,10 +199,10 @@ public class Notifications {
                     ColorUtil.replAlpha(Renderer2D.ColorUtil.getClientColor(), (int) (255 * alpha))
             };
 
-            float textW = renderer.measureText(FontRegistry.SF_MEDIUM, n.text, FS).width;
+            float textW = renderer.measureText(FontRegistry.MONTSERRAT, n.text, FS).width;
 
             if (n.isToggle) {
-                float toggleX = centerX - w / 2f + padH - 4 * scale;
+                float toggleX = cx - w / 2f + padH - 4 * scale;
                 float toggleY = drawY + (h - togH) / 2f;
 
                 if (n.toggleStart == -1) {
@@ -236,25 +236,25 @@ public class Notifications {
                                 t));
 
                 float textX = toggleX + togW + togGap + textW / 2f;
-                renderer.textCenter(FontRegistry.SF_MEDIUM, textX, textY, FS, n.text, colors, 5);
+                renderer.textCenter(FontRegistry.MONTSERRAT, textX, textY, FS, n.text, colors, 5);
 
             } else if (hasTextIcon(n)) {
                 float iconW = renderer.measureText(FontRegistry.NOTIFY, n.iconText, FS).width;
                 float contentW = iconW + icoGap + textW;
-                float startX = centerX - contentW / 2f;
+                float startX = cx - contentW / 2f;
 
                 float iconX = startX + iconW / 2f;
                 float textX = startX + iconW + icoGap + textW / 2f;
 
                 renderer.textCenter(FontRegistry.NOTIFY, iconX - 2 * scale, textY - 1 * scale, FS, n.iconText, colors, 5);
-                renderer.textCenter(FontRegistry.SF_MEDIUM, textX + 3 * scale, textY, FS, n.text, colors, 5);
+                renderer.textCenter(FontRegistry.MONTSERRAT, textX + 3 * scale, textY, FS, n.text, colors, 5);
 
             } else if (hasItemIcon(n)) {
                 float contentW = icoSize + icoGap + textW;
-                float startX = centerX - contentW / 2f;
+                float startX = cx - contentW / 2f;
 
                 float textX = startX + icoSize + icoGap + textW / 2f - 3 * scale;
-                renderer.textCenter(FontRegistry.SF_MEDIUM, textX, textY, FS, n.text, colors, 5);
+                renderer.textCenter(FontRegistry.MONTSERRAT, textX, textY, FS, n.text, colors, 5);
 
                 if (alpha > 0.01f) {
                     float iconX = startX;
@@ -275,7 +275,7 @@ public class Notifications {
                     matrices.popMatrix();
                 }
             } else {
-                renderer.textCenter(FontRegistry.SF_MEDIUM, centerX, textY, FS, n.text, colors, 5);
+                renderer.textCenter(FontRegistry.MONTSERRAT, cx, textY, FS, n.text, colors, 5);
             }
         }
     }
@@ -300,6 +300,7 @@ public class Notifications {
         final long createdAt;
         final boolean isToggle;
         final boolean toggleState;
+        final boolean fromLeft;
         final Animation2 anim = new Animation2();
         final Animation2 yAnim = new Animation2();
         long toggleStart;
@@ -331,6 +332,8 @@ public class Notifications {
             this.toggleState = toggleState;
             this.lifetimeMs = lifetimeMs;
             this.createdAt = System.currentTimeMillis();
+            this.fromLeft = nextFromLeft;
+            nextFromLeft = !nextFromLeft;
             this.toggleStart = -1;
             anim.set(0.0);
             yAnim.set(0.0);

@@ -109,10 +109,10 @@ public class Module extends Config {
       this.enable = !this.enable;
       if (this.enable) {
          this.onEnable();
-         Notifications.add(ColorFormat.color(255,255,255) + this.name, true);
+         Notifications.add(ColorFormat.color(ColorUtil.theme(255)) + this.name + ColorFormat.color(255,255,255) + " был " + ColorFormat.color(125,255,125) + "включен", true);
       } else {
          this.onDisable();
-         Notifications.add(ColorFormat.color(255,255,255) + this.name, false);
+         Notifications.add(ColorFormat.color(ColorUtil.theme(255)) + this.name + ColorFormat.color(255,255,255) + " был " + ColorFormat.color(255,125,125) + "выключен", false);
       }
 
         if (Vesence.get.configManager != null) {
