@@ -79,6 +79,15 @@ public class WorldRendererMixin {
          }
       }
 
+      // KillEffect: GPU depth-scan волны поверх мира (когда depth-буфер готов).
+      try {
+         vesence.module.impl.visuals.KillEffect killEffect = vesence.module.impl.visuals.KillEffect.INSTANCE;
+         if (killEffect != null && killEffect.enable && camera != null) {
+            killEffect.renderScanWaves(new Matrix4f(basicProjectionMatrix), new Matrix4f(positionMatrix), camera.getCameraPos());
+         }
+      } catch (Exception ignored) {
+      }
+
       MatrixStack stack = new MatrixStack();
       Matrix4f basePositionMatrix = new Matrix4f(positionMatrix);
       stack.multiplyPositionMatrix(new Matrix4f(basePositionMatrix));
