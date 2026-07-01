@@ -20,7 +20,6 @@ public class ModuleManager {
       this.module.add(new Speed());
       this.module.add(new NoWeb());
       this.module.add(new GuiMove());
-      this.module.add(new DashTrails());
       this.module.add(new NoDelay());
       this.module.add(new vesence.module.impl.visuals.ThemeModule());
       this.module.add(new Hud());

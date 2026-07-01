@@ -13,6 +13,7 @@ import vesence.module.api.setting.Setting;
 @Environment(EnvType.CLIENT)
 public class BindSettings extends Setting<Integer> {
    public int key;
+   public int key2 = -1;
    public final List<Integer> extraKeys = new ArrayList<>();
    public String description;
    public boolean active;

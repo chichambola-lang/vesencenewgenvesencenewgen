@@ -37,6 +37,7 @@ public class Module extends Config {
    public static MinecraftClient mc = MinecraftClient.getInstance();
    public String name;
    public int bind;
+   public int bind2 = -1;
    public final java.util.List<Integer> comboKeys = new java.util.ArrayList<>();
    public boolean enable;
    public boolean open = false;
