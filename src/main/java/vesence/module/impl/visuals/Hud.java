@@ -48,6 +48,12 @@ public class Hud extends Module {
     private static final float GRID_SIZE = 10f;
     private final Animation2 gridAnim = new Animation2();
 
+    private boolean switchInit = false;
+    private boolean lastModern = false;
+    private long switchStart = 0L;
+    private static final float SWITCH_DURATION = 0.4f;
+    private static final float SWITCH_STAGGER = 0.05f;
+
     public Hud() {
         this.hiddenFromGui = true;
 
@@ -167,6 +173,16 @@ public class Hud extends Module {
         Renderer2D renderer = event.renderer();
         FontObject  font    = event.defaultFont();
 
+        boolean modernNow = ClickGui.isModern();
+        if (!switchInit) {
+            switchInit = true;
+            lastModern = modernNow;
+        } else if (modernNow != lastModern) {
+            lastModern = modernNow;
+            switchStart = System.currentTimeMillis();
+        }
+        float switchElapsed = (System.currentTimeMillis() - switchStart) / 1000f;
+
         boolean anyDragging = false;
         if (isChatOpen) {
             for (HudElement element : getHudElements()) {
@@ -211,13 +227,22 @@ public class Hud extends Module {
             }
         }
 
-        for (HudElement element : getHudElements()) {
+        List<HudElement> renderList = getHudElements();
+        for (int idx = 0; idx < renderList.size(); idx++) {
+            HudElement element = renderList.get(idx);
             boolean enabled = elements.get(element.name);
 
             element.alphaAnim.update();
             element.alphaAnim.run(enabled ? 1.0 : 0.0, 0.2, Easings.CUBIC_OUT);
             float elemAlpha = (float) element.alphaAnim.get();
             if (elemAlpha < 0.005f) continue;
+
+            float switchProg = Math.max(0f, Math.min(1f, (switchElapsed - idx * SWITCH_STAGGER) / SWITCH_DURATION));
+            float switchFade = 1f - (float) Math.pow(1f - switchProg, 3f);
+            float switchScale = 0.55f + 0.45f * easeOutBack(switchProg);
+            float switchSlide = (1f - switchFade) * 26f;
+            float switchTilt = (1f - switchFade) * ((idx & 1) == 0 ? 7f : -7f);
+            element.y += switchSlide;
 
             float scale;
             float rawScale = element.scaleSetting.get().floatValue();
@@ -230,11 +255,11 @@ public class Hud extends Module {
                 scale = (float) element.scaleAnim.get();
             }
             renderer.pushScale(scale, element.x, element.y);
-            renderer.pushAlpha(elemAlpha);
+            renderer.pushAlpha(elemAlpha * switchFade);
 
             element.updateInteraction(mouseX, mouseY, renderer, font, element.isDragging());
-            float expand = element.getExpand();
-            boolean expanding = Math.abs(expand - 1f) > 0.0005f;
+            float expand = element.getExpand() * switchScale;
+            boolean transforming = Math.abs(expand - 1f) > 0.0005f || Math.abs(switchTilt) > 0.02f;
 
             float cw = element.getWidth(renderer, font);
             float ch = element.getHeight(renderer, font);
@@ -243,25 +268,29 @@ public class Hud extends Module {
 
             float guiScale = (float) vesence.utils.other.Mathf.getScaleFactor();
             org.joml.Matrix3x2fStack ctxMatrices = event.drawContext().getMatrices();
-            if (expanding) {
+            if (transforming) {
                 renderer.pushScale(expand, expand, centerXfb, centerYfb);
+                renderer.pushRotationAround(switchTilt, centerXfb, centerYfb);
 
                 ctxMatrices.pushMatrix();
                 float cgx = centerXfb / guiScale;
                 float cgy = centerYfb / guiScale;
                 ctxMatrices.translate(cgx, cgy);
+                ctxMatrices.rotate((float) Math.toRadians(switchTilt));
                 ctxMatrices.scale(expand, expand);
                 ctxMatrices.translate(-cgx, -cgy);
             }
             element.render(renderer, font, event.viewportWidth(), event.viewportHeight(), event.drawContext());
 
             element.renderHoverOutline(renderer, font);
-            if (expanding) {
+            if (transforming) {
                 ctxMatrices.popMatrix();
+                renderer.popRotation();
                 renderer.popScale();
             }
             renderer.popAlpha();
             renderer.popScale();
+            element.y -= switchSlide;
 
             if (isChatOpen) {
                 if (!leftDown) {
@@ -281,6 +310,13 @@ public class Hud extends Module {
         }
 
         syncInactivePositions();
+    }
+
+    private static float easeOutBack(float t) {
+        float c1 = 1.70158f;
+        float c3 = c1 + 1f;
+        float u = t - 1f;
+        return 1f + c3 * u * u * u + c1 * u * u;
     }
 
     private void renderGrid(Renderer2D renderer, int screenW, int screenH, float animT) {

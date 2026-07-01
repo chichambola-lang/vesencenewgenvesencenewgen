@@ -105,7 +105,7 @@ public class KeybindsElement extends HudElement {
         for (Module mod : Vesence.get.manager.getModules()) {
             if (mod.bind == -1 || !mod.enable) continue;
             float nameW = renderer.measureText(font, mod.name, FONT_SIZE).width;
-            float bindW = renderer.measureText(font, KeyUtil.getKey(mod.bind), FONT_SIZE).width;
+            float bindW = renderer.measureText(font, bindLabel(mod), FONT_SIZE).width;
             float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + bindW + PADDING_H;
             if (lineW > maxLineW) maxLineW = lineW;
         }
@@ -138,7 +138,7 @@ public class KeybindsElement extends HudElement {
             int modTextAlpha = (int)(255 * modAlpha);
 
             String modName = mod.name;
-            String bindStr = KeyUtil.getKey(mod.bind);
+            String bindStr = bindLabel(mod);
 
             int nameColor = (modTextAlpha << 24) | (WHITE_COLOR & 0x00FFFFFF);
             int bindColor = (modTextAlpha << 24) | (themeColor & 0x00FFFFFF);
@@ -164,7 +164,7 @@ public class KeybindsElement extends HudElement {
         for (Module mod : Vesence.get.manager.getModules()) {
             if (mod.bind == -1 || !mod.enable) continue;
             float nameW = renderer.measureText(font, mod.name, FONT_SIZE).width;
-            float bindW = renderer.measureText(font, KeyUtil.getKey(mod.bind), FONT_SIZE).width;
+            float bindW = renderer.measureText(font, bindLabel(mod), FONT_SIZE).width;
             float lineW = (PADDING_H + 17) + nameW + ROW_RIGHT_EXTRA_GAP + bindW + PADDING_H;
             if (lineW > maxLineW) maxLineW = lineW;
         }
@@ -172,6 +172,12 @@ public class KeybindsElement extends HudElement {
         float headerW = headerTextW + 55f;
         float contentW = Math.max(135, Math.max(maxLineW, headerW));
         return contentW + PADDING_H * 2f + 15;
+    }
+
+    private static String bindLabel(Module mod) {
+        String s = KeyUtil.getKey(mod.bind);
+        if (mod.bind2 != -1) s += " + " + KeyUtil.getKey(mod.bind2);
+        return s;
     }
 
     @Override

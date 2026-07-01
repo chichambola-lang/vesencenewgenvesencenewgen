@@ -251,7 +251,7 @@ public class GuiRenderMain extends GuiScreen {
          renderer2D.rectOutline(panelX + 8 + effectiveModXOffset, rectY, pw - 16, cardH + 0.5F, 3, OutlineColor, 1);
          renderer2D.rect(panelX + 8 + effectiveModXOffset, rectY, 2.5F, cardH, 3, 0, 0, 3, rectColor2);
 
-         String test = module.binding ? "Module bind: " + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha))  + "[" + ColorFormat.reset() + "NONE" + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha)) + "]" : "Module bind: " + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha))  + "[" + ColorFormat.reset() + KeyUtil.getKey(module.bind) + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha)) + "]";
+         String test = module.binding ? "Module bind: " + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha))  + "[" + ColorFormat.reset() + "NONE" + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha)) + "]" : "Module bind: " + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha))  + "[" + ColorFormat.reset() + (KeyUtil.getKey(module.bind) + (module.bind2 != -1 ? " + " + KeyUtil.getKey(module.bind2) : "")) + ColorFormat.color(255, 255, 255, (int) (38 * expandAlpha)) + "]";
 
          float textX = panelX + 12.5F + effectiveModXOffset + animPC * 3.5F;
          float textY = nameY + 11 - panelAlpha * 35 + 35;

@@ -37,6 +37,7 @@ public class Module extends Config {
    public static MinecraftClient mc = MinecraftClient.getInstance();
    public String name;
    public int bind;
+   public final java.util.List<Integer> comboKeys = new java.util.ArrayList<>();
    public boolean enable;
    public boolean open = false;
    public Category category;
@@ -120,6 +121,14 @@ public class Module extends Config {
         }
    }
 
+   public String bindLabel() {
+      StringBuilder sb = new StringBuilder(vesence.utils.other.KeyUtil.getKey(this.bind));
+      for (int k : this.comboKeys) {
+         sb.append(" + ").append(vesence.utils.other.KeyUtil.getKey(k));
+      }
+      return sb.toString();
+   }
+
    public JsonObject save() {
       JsonObject object = new JsonObject();
       if (this.enable) {
@@ -128,6 +137,11 @@ public class Module extends Config {
 
       if (this.bind != 0) {
          object.addProperty("keyIndex", this.bind);
+      }
+      if (!this.comboKeys.isEmpty()) {
+         com.google.gson.JsonArray extra = new com.google.gson.JsonArray();
+         for (int k : this.comboKeys) extra.add(k);
+         object.add("keyIndexExtra", extra);
       }
 
       JsonObject propertiesObject = new JsonObject();
@@ -148,7 +162,17 @@ public class Module extends Config {
             rangeObject.addProperty("to", ((RangeSliderSetting)set).valueTo);
             propertiesObject.add(key, rangeObject);
          } else if (set instanceof BindSettings) {
-            propertiesObject.addProperty(key, ((BindSettings)set).key);
+            BindSettings bs = (BindSettings) set;
+            if (!bs.extraKeys.isEmpty()) {
+               JsonObject bindObject = new JsonObject();
+               bindObject.addProperty("k", bs.key);
+               com.google.gson.JsonArray extra = new com.google.gson.JsonArray();
+               for (int k : bs.extraKeys) extra.add(k);
+               bindObject.add("extra", extra);
+               propertiesObject.add(key, bindObject);
+            } else {
+               propertiesObject.addProperty(key, bs.key);
+            }
          } else if (set instanceof StringSetting) {
             propertiesObject.addProperty(key, ((StringSetting)set).input);
          } else if (set instanceof HueSetting) {
@@ -194,6 +218,12 @@ public class Module extends Config {
          if (object.has("keyIndex")) {
             this.bind = object.get("keyIndex").getAsInt();
          }
+         this.comboKeys.clear();
+         if (object.has("keyIndexExtra") && object.get("keyIndexExtra").isJsonArray()) {
+            for (com.google.gson.JsonElement e : object.getAsJsonArray("keyIndexExtra")) {
+               this.comboKeys.add(e.getAsInt());
+            }
+         }
 
          java.util.Map<String, Integer> loadNameCounts = new java.util.HashMap<>();
 
@@ -219,7 +249,17 @@ public class Module extends Config {
                      if (rangeObject.has("to")) range.setTo(rangeObject.get("to").getAsDouble());
                   }
                } else if (set instanceof BindSettings) {
-                  ((BindSettings)set).key = propertiesObject.get(key).getAsInt();
+                  BindSettings bs = (BindSettings) set;
+                  bs.extraKeys.clear();
+                  if (propertiesObject.get(key).isJsonObject()) {
+                     JsonObject bindObject = propertiesObject.getAsJsonObject(key);
+                     bs.key = bindObject.has("k") ? bindObject.get("k").getAsInt() : -1;
+                     if (bindObject.has("extra") && bindObject.get("extra").isJsonArray()) {
+                        for (com.google.gson.JsonElement e : bindObject.getAsJsonArray("extra")) bs.extraKeys.add(e.getAsInt());
+                     }
+                  } else {
+                     bs.key = propertiesObject.get(key).getAsInt();
+                  }
                } else if (set instanceof StringSetting) {
                   ((StringSetting)set).input = propertiesObject.get(key).getAsString();
                } else if (set instanceof HueSetting) {

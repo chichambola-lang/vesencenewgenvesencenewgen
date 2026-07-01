@@ -46,13 +46,28 @@ public class KeyboardMixin {
         }
 
         if (mc.player != null && Vesence.get != null && Vesence.get.manager != null) {
-            for (var module : Vesence.get.manager.getBind(key)) {
-                module.toggle();
+            long handle = mc.getWindow().getHandle();
+            for (var module : Vesence.get.manager.getModules()) {
+                if (module.bind == -1) continue;
+                if (module.bind2 == -1) {
+                    if (module.bind == key) module.toggle();
+                } else if ((key == module.bind && isKeyHeld(handle, module.bind2))
+                        || (key == module.bind2 && isKeyHeld(handle, module.bind))) {
+                    module.toggle();
+                }
             }
         }
 
         if (mc.player != null) {
             vesence.utils.macro.MacroManager.getInstance().onKeyPress(key);
         }
+    }
+
+    private static boolean isKeyHeld(long handle, int k) {
+        if (k == -1) return false;
+        if (k <= -100) {
+            return GLFW.glfwGetMouseButton(handle, -k - 100) == GLFW.GLFW_PRESS;
+        }
+        return GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS;
     }
 }

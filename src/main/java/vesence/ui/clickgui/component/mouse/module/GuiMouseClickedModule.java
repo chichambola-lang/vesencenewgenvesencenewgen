@@ -171,6 +171,7 @@ public class GuiMouseClickedModule extends GuiScreen {
                if (module.binding && pButton >= 0) {
                   int mouseKey = -100 - pButton;
                   module.bind = mouseKey;
+                  module.bind2 = -1;
                   module.binding = false;
                   GuiScreen.activeModuleBind = null;
                   GuiScreen.getModuleBindAnimation(module).run(1.0, 0.2, Easings.SINE_OUT);

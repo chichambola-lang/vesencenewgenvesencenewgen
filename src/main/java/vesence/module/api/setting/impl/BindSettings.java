@@ -1,5 +1,7 @@
 package vesence.module.api.setting.impl;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -11,6 +13,7 @@ import vesence.module.api.setting.Setting;
 @Environment(EnvType.CLIENT)
 public class BindSettings extends Setting<Integer> {
    public int key;
+   public final List<Integer> extraKeys = new ArrayList<>();
    public String description;
    public boolean active;
 
@@ -39,11 +42,18 @@ public class BindSettings extends Setting<Integer> {
 
    public boolean isPressed() {
       if (this.key == -1) return false;
-      if (this.key <= -100) {
-         int button = -this.key - 100;
+      if (!isDown(this.key)) return false;
+      if (this.key2 != -1 && !isDown(this.key2)) return false;
+      return true;
+   }
+
+   private boolean isDown(int k) {
+      if (k == -1) return false;
+      if (k <= -100) {
+         int button = -k - 100;
          long handle = MinecraftClient.getInstance().getWindow().getHandle();
          return GLFW.glfwGetMouseButton(handle, button) == GLFW.GLFW_PRESS;
       }
-      return InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), this.key);
+      return InputUtil.isKeyPressed(MinecraftClient.getInstance().getWindow(), k);
    }
 }

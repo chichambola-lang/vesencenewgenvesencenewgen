@@ -13,8 +13,10 @@ import vesence.module.impl.misc.Assist;
 import vesence.module.impl.visuals.Hud;
 import vesence.module.impl.visuals.HudElement;
 import vesence.renderengine.render.Renderer2D;
+import vesence.utils.other.KeyUtil;
 import vesence.utils.render.BorderRadius;
 import vesence.utils.render.ColorUtil;
+import vesence.utils.render.text.ColorFormat;
 import vesence.utils.render.text.FontObject;
 import org.lwjgl.glfw.GLFW;
 import vesence.utils.render.text.FontRegistry;
@@ -70,27 +72,28 @@ public class ModernAssistElement extends HudElement {
             ctx.drawItem(item.stack, -8, -8);
             ctx.getMatrices().popMatrix();
 
+            float bindW = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).width;
             String countStr = String.valueOf(item.totalCount);
             float countTextH = renderer.measureText(FontRegistry.MONTSERRAT, countStr, FONT_SIZE).height;
-            float countX = curX + 6;
-            float countY = y + 6 + countTextH * 0.7f;
-            renderer.text(FontRegistry.MONTSERRAT, countX, countY, FONT_SIZE, countStr, WHITE_COLOR);
+            float countX = curX + bindW + 68;
+            float countY = y + PANEL_SIZE / 2f - 12.5f;
+            renderer.text(FontRegistry.MONTSERRAT, countX, countY, FONT_SIZE + 5, ColorFormat.color(ColorUtil.theme(255)) + countStr + ColorFormat.reset() + "x", WHITE_COLOR);
 
-            float bindW = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).width;
             float bindTextH = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).height;
-            float bindX = curX + pw - bindW - 6;
-            float bindY = y + PANEL_SIZE - 12 - bindTextH * 0.3f;
+            float bindX = curX + 44;
+            float bindY = y + PANEL_SIZE / 2f - 14;
             renderer.text(FontRegistry.MONTSERRAT, bindX, bindY, FONT_SIZE, item.bindKey, WHITE_COLOR);
+            renderer.rect(curX + bindW + 55, y + 12, 1, 18, ColorUtil.replAlpha(-1, 25));
 
             curX += pw + PANEL_GAP;
         }
     }
 
     private float panelWidth(Renderer2D renderer, BoundItem item) {
-        float countW = renderer.measureText(FontRegistry.MONTSERRAT, String.valueOf(item.totalCount), FONT_SIZE).width;
-        float bindW = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).width;
-        float leftW = Math.max(34f, 6f + countW);
-        return leftW + 8f + bindW + 8f;
+        float bindW = renderer.measureText(FontRegistry.MONTSERRAT, item.bindKey, FONT_SIZE).width + 10;
+        float countW = renderer.measureText(FontRegistry.MONTSERRAT, String.valueOf(item.totalCount), FONT_SIZE).width + 37;
+        float leftW = Math.max(34f, 6f);
+        return leftW + 8f + bindW + 4 + countW;
     }
 
     @Override
@@ -156,13 +159,9 @@ public class ModernAssistElement extends HudElement {
         if (totalCount == 0) return;
 
         String keyName = getKeyName(bind.key);
-        String bindKey = isMouseButtonName(keyName) ? keyName : keyName + " + \u041C";
+        String bindKey = keyName;
 
         items.add(new BoundItem(stack, bindKey, totalCount));
-    }
-
-    private boolean isMouseButtonName(String name) {
-        return name.equals("LMB") || name.equals("RMB") || name.equals("MMB");
     }
 
     private int findItemSlot(MinecraftClient mc, String nameSubstring, Item fallbackItem) {
@@ -226,22 +225,11 @@ public class ModernAssistElement extends HudElement {
 
     private String getKeyName(int keyCode) {
         if (keyCode == -1) return "";
-        String name = GLFW.glfwGetKeyName(keyCode, 0);
-        if (name != null) {
-            return name.toUpperCase();
-        }
         switch (keyCode) {
-            case GLFW.GLFW_KEY_SPACE: return "SPC";
-            case GLFW.GLFW_KEY_LEFT_SHIFT: return "SHIFT";
-            case GLFW.GLFW_KEY_RIGHT_SHIFT: return "SHIFT";
-            case GLFW.GLFW_KEY_LEFT_CONTROL: return "CTRL";
-            case GLFW.GLFW_KEY_RIGHT_CONTROL: return "CTRL";
-            case GLFW.GLFW_KEY_LEFT_ALT: return "ALT";
-            case GLFW.GLFW_KEY_RIGHT_ALT: return "ALT";
             case GLFW.GLFW_MOUSE_BUTTON_1: return "LMB";
             case GLFW.GLFW_MOUSE_BUTTON_2: return "RMB";
             case GLFW.GLFW_MOUSE_BUTTON_3: return "MMB";
-            default: return "KEY" + keyCode;
+            default: return KeyUtil.getKey(keyCode);
         }
     }
 
