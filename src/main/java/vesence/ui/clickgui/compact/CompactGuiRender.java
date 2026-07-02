@@ -652,7 +652,7 @@ public class CompactGuiRender {
 
         {
             String bLabel = "Module bind...";
-            String bText = mod.binding ? "..." : vesence.utils.render.utils.KeyUtil.getKey(mod.bind);
+            String bText = mod.binding ? "..." : mod.bindLabel();
             float ktw = renderer.measureText(FontRegistry.MONTSERRAT, bText, 11).width;
             float bw = ktw + 7;
             float bx = cardX + cardW - bw - 3;

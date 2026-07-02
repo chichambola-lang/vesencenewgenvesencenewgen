@@ -175,9 +175,7 @@ public class KeybindsElement extends HudElement {
     }
 
     private static String bindLabel(Module mod) {
-        String s = KeyUtil.getKey(mod.bind);
-        if (mod.bind2 != -1) s += " + " + KeyUtil.getKey(mod.bind2);
-        return s;
+        return mod.bindLabel();
     }
 
     @Override

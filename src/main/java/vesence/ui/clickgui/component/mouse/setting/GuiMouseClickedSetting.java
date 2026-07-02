@@ -47,15 +47,18 @@ public class GuiMouseClickedSetting extends GuiScreen {
       if (setting instanceof BindSettings) {
          BindSettings bindSetting = (BindSettings) setting;
          float bindHeight = 10.0F;
-         String keyText = bindSetting.active ? "..." : KeyUtil.getKey(bindSetting.key);
+         String keyText = bindSetting.active ? "..." : bindSetting.label();
          float keyTextWidth = renderer2D.measureText(FontRegistry.SF_MEDIUM, keyText, 11.5f).width;
-         float buttonWidth = keyTextWidth + 6.0F;
+         float maxButtonWidth = width * 0.6F;
+         float buttonWidth = Math.min(keyTextWidth + 6.0F, maxButtonWidth);
          float bindButtonX = x + width - buttonWidth - 1.0F;
          if (bindButtonX < x + renderer2D.measureText(FontRegistry.SF_MEDIUM, bindSetting.name != null && !bindSetting.name.isEmpty() ? bindSetting.name : "KEY", 12.0F).width + 3.0F) {
             bindButtonX = x + width - buttonWidth;
          }
 
-         if (GuiRenderMain.isHovered(mouseX, mouseY, bindButtonX, renderY - 2.0F, buttonWidth, bindHeight)) {
+         boolean hitButton = GuiRenderMain.isHovered(mouseX, mouseY, bindButtonX, renderY - 2.0F, buttonWidth, bindHeight);
+         boolean hitRow = GuiRenderMain.isHovered(mouseX, mouseY, x, renderY - 2.0F, width, 12.0F);
+         if (hitButton || hitRow) {
             if (button == 0) {
                if (GuiScreen.activeBindSetting != bindSetting) {
                   if (GuiScreen.activeBindSetting != null) {
@@ -67,11 +70,14 @@ public class GuiMouseClickedSetting extends GuiScreen {
                return true;
             }
 
-            if (GuiScreen.activeBindSetting == bindSetting && button >= 0) {
+            // ПКМ/СКМ/боковые как бинд (мышиные кнопки, кроме ЛКМ которая = выбор поля)
+            if (GuiScreen.activeBindSetting == bindSetting && button >= 1) {
                int mouseKey = -100 - button;
                bindSetting.key = mouseKey;
+               bindSetting.extraKeys.clear();
                bindSetting.active = false;
                GuiScreen.activeBindSetting = null;
+               if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
                return true;
             }
          }

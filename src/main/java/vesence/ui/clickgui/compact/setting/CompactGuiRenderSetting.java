@@ -321,13 +321,19 @@ public class CompactGuiRenderSetting {
 
         } else if (setting instanceof BindSettings bs) {
             String dn = setting.name != null && !setting.name.isEmpty() ? setting.name : "KEY";
-            String kt = bs.active ? "..." : KeyUtil.getKey(bs.key);
+            String kt = bs.active ? "..." : bs.label();
             float ktw = r.measureText(FontRegistry.MONTSERRAT, kt, 12).width;
-            float bw = ktw + 7;
+            // Ограничиваем ширину кнопки, чтобы длинное комбо не выходило за
+            // рамки панели: максимум 65% ширины строки.
+            float maxBw = (w - PAD * 2) * 0.65f;
+            float bw = Math.min(ktw + 7, maxBw);
             float bx = x + w - bw - 3;
             r.rect(bx, ry + 0.75f, bw, 11, 2.5f, ColorUtil.replAlpha(-1, (int)(15 * alpha)));
+            // Текст бинда с клипом внутри кнопки (скролл если не влезает).
+            r.pushClipRect((int)(bx + 2), (int)(ry - 1), (int)(bw - 4), 14);
             r.textRight(FontRegistry.MONTSERRAT, bx + bw - 3.5f, ry + 8.75f, 12, kt,
                     kt.contains("NONE") ? ColorUtil.replAlpha(-1, (int)(100 * alpha)) : ColorUtil.replAlpha(-1, (int)(255 * alpha)));
+            r.popClipRect();
             renderScrollingText(r, FontRegistry.MONTSERRAT, "compact_bind_" + setting.name, dn, x + PAD, ry + 9, 13,
                     ColorUtil.replAlpha(-1, (int)(255 * alpha)), x + PAD, bx - x - PAD - 2, 13 + 4);
             h = 13;

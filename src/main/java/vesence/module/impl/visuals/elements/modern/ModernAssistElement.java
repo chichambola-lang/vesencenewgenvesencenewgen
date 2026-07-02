@@ -158,8 +158,7 @@ public class ModernAssistElement extends HudElement {
         int totalCount = countItemsInInventory(mc, nameSubstring, item);
         if (totalCount == 0) return;
 
-        String keyName = getKeyName(bind.key);
-        String bindKey = keyName;
+        String bindKey = bind.label();
 
         items.add(new BoundItem(stack, bindKey, totalCount));
     }

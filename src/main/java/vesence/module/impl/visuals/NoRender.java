@@ -22,6 +22,13 @@ public class NoRender extends Module {
 
    public static final MultiBooleanSetting elements = new MultiBooleanSetting("Элементы",
            new BooleanSetting("Огонь на экране", true),
+           new BooleanSetting("Лава на экране", false),
+           new BooleanSetting("Вода на экране", false),
+           new BooleanSetting("Оверлей в блоке", false),
+           new BooleanSetting("Портал на экране", false),
+           new BooleanSetting("Виньетка", false),
+           new BooleanSetting("Иконки эффектов", false),
+           new BooleanSetting("Тошнота", false),
            new BooleanSetting("Линия босса", true),
            new BooleanSetting("Анимация тотема", true),
            new BooleanSetting("Партиклы тотема", true),
@@ -29,11 +36,29 @@ public class NoRender extends Module {
            new BooleanSetting("Таблица", true),
            new BooleanSetting("Тряску камеры", true),
            new BooleanSetting("Плохие эффекты", true),
-           new BooleanSetting("Дождь", true)
+           new BooleanSetting("Блеск зачарования", false),
+           new BooleanSetting("Сердца визера", false),
+           new BooleanSetting("Плохие сердца", false),
+           new BooleanSetting("Дождь", true),
+           new BooleanSetting("Облака", false),
+           new BooleanSetting("Блок-сущности", false),
+           new BooleanSetting("Тени", false),
+           new BooleanSetting("Частицы", false),
+           new BooleanSetting("Частицы удара", false)
    );
 
    public NoRender() {
       this.addSettings(elements);
+   }
+
+   /** Общий помощник: активен ли модуль и включён ли элемент. */
+   public static boolean isElementActive(String element) {
+      try {
+         NoRender inst = vesence.Vesence.get.manager.get(NoRender.class);
+         return inst != null && inst.enable && elements.get(element);
+      } catch (Throwable ignored) {
+         return false;
+      }
    }
 
    @EventInit

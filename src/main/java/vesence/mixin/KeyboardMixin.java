@@ -49,11 +49,18 @@ public class KeyboardMixin {
             long handle = mc.getWindow().getHandle();
             for (var module : Vesence.get.manager.getModules()) {
                 if (module.bind == -1) continue;
-                if (module.bind2 == -1) {
-                    if (module.bind == key) module.toggle();
-                } else if ((key == module.bind && isKeyHeld(handle, module.bind2))
-                        || (key == module.bind2 && isKeyHeld(handle, module.bind))) {
-                    module.toggle();
+                if (module.comboKeys.isEmpty()) {
+                    // Голый бинд: срабатывает только если нажата именно эта клавиша
+                    // и НЕ зажат посторонний модификатор (иначе конфликт с CTRL+X).
+                    if (module.bind == key && !isModifierHeld(handle, module.bind)) {
+                        module.toggle();
+                    }
+                } else {
+                    // Комбо-бинд: нажатая клавиша должна быть частью комбо,
+                    // а все остальные клавиши комбо должны быть зажаты.
+                    if (isComboTriggered(handle, key, module.bind, module.comboKeys)) {
+                        module.toggle();
+                    }
                 }
             }
         }
@@ -69,5 +76,46 @@ public class KeyboardMixin {
             return GLFW.glfwGetMouseButton(handle, -k - 100) == GLFW.GLFW_PRESS;
         }
         return GLFW.glfwGetKey(handle, k) == GLFW.GLFW_PRESS;
+    }
+
+    /**
+     * Комбо срабатывает только если нажатая клавиша (key) входит в комбо
+     * (это основной bind или один из comboKeys), а ВСЕ остальные клавиши
+     * комбо в этот момент зажаты. Так CTRL+R сработает только на нажатии
+     * последней недостающей клавиши при зажатых остальных.
+     */
+    private static boolean isComboTriggered(long handle, int pressedKey, int bind, java.util.List<Integer> comboKeys) {
+        boolean pressedIsPart = (pressedKey == bind) || comboKeys.contains(pressedKey);
+        if (!pressedIsPart) return false;
+        // Основная клавиша должна быть зажата (или это она и есть)
+        if (pressedKey != bind && !isKeyHeld(handle, bind)) return false;
+        for (int k : comboKeys) {
+            if (k == pressedKey) continue;
+            if (!isKeyHeld(handle, k)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Проверяет, зажат ли сейчас какой-либо модификатор (Ctrl/Alt/Left Shift).
+     * Right Shift исключён - он открывает GUI клиента.
+     * Если сам бинд является модификатором (self) - его зажатие игнорируется,
+     * чтобы бинд на Ctrl/Alt/Shift продолжал работать.
+     */
+    private static boolean isModifierHeld(long handle, int self) {
+        int[] mods = {
+                GLFW.GLFW_KEY_LEFT_CONTROL,
+                GLFW.GLFW_KEY_RIGHT_CONTROL,
+                GLFW.GLFW_KEY_LEFT_ALT,
+                GLFW.GLFW_KEY_RIGHT_ALT,
+                GLFW.GLFW_KEY_LEFT_SHIFT
+        };
+        for (int m : mods) {
+            if (m == self) continue;
+            if (GLFW.glfwGetKey(handle, m) == GLFW.GLFW_PRESS) {
+                return true;
+            }
+        }
+        return false;
     }
 }

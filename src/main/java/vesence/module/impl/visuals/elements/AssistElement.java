@@ -142,7 +142,7 @@ public class AssistElement extends HudElement {
         int totalCount = countItemsInInventory(mc, nameSubstring, item);
         if (totalCount == 0) return;
 
-        String bindKey = getKeyName(bind.key);
+        String bindKey = bind.label();
 
         items.add(new BoundItem(stack, bindKey, totalCount));
     }

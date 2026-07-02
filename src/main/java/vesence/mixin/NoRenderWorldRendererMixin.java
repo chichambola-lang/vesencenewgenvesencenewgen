@@ -19,4 +19,20 @@ public class NoRenderWorldRendererMixin {
          ci.cancel();
       }
    }
+
+   @Inject(method = "renderClouds", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderClouds(CallbackInfo ci) {
+      NoRender nr = Vesence.get.manager.get(NoRender.class);
+      if (nr != null && nr.enable && NoRender.elements.get("Облака")) {
+         ci.cancel();
+      }
+   }
+
+   @Inject(method = "renderBlockEntities", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderBlockEntities(CallbackInfo ci) {
+      NoRender nr = Vesence.get.manager.get(NoRender.class);
+      if (nr != null && nr.enable && NoRender.elements.get("Блок-сущности")) {
+         ci.cancel();
+      }
+   }
 }

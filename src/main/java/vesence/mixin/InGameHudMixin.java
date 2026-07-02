@@ -50,6 +50,38 @@ public class InGameHudMixin {
       }
    }
 
+   @Inject(method = "renderVignetteOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderVignette(CallbackInfo ci) {
+      NoRender nr = Vesence.get.manager.get(NoRender.class);
+      if (nr != null && nr.enable && NoRender.elements.get("Виньетка")) {
+         ci.cancel();
+      }
+   }
+
+   @Inject(method = "renderStatusEffectOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderStatusEffectOverlay(CallbackInfo ci) {
+      NoRender nr = Vesence.get.manager.get(NoRender.class);
+      if (nr != null && nr.enable && NoRender.elements.get("Иконки эффектов")) {
+         ci.cancel();
+      }
+   }
+
+   @Inject(method = "renderNauseaOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderNausea(CallbackInfo ci) {
+      NoRender nr = Vesence.get.manager.get(NoRender.class);
+      if (nr != null && nr.enable && NoRender.elements.get("Тошнота")) {
+         ci.cancel();
+      }
+   }
+
+   @Inject(method = "renderPortalOverlay", at = @At("HEAD"), cancellable = true)
+   private void vesence$onRenderPortal(CallbackInfo ci) {
+      NoRender nr = Vesence.get.manager.get(NoRender.class);
+      if (nr != null && nr.enable && NoRender.elements.get("Портал на экране")) {
+         ci.cancel();
+      }
+   }
+
    @Inject(method = "render", at = @At("HEAD"))
    private void onPreRenderHud(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
       if (Vesence.isModInitialized()) {

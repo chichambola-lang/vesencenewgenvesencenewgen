@@ -104,23 +104,21 @@ public class CompactGuiMouseClickedSetting {
         }
 
         if (setting instanceof BindSettings bs) {
-            String kt = bs.active ? "..." : KeyUtil.getKey(bs.key);
+            String kt = bs.active ? "..." : bs.label();
             float ktw = r.measureText(FontRegistry.SF_MEDIUM, kt, 12).width;
-            float bw = ktw + 7;
+            float maxBw = (w - PAD * 2) * 0.65f;
+            float bw = Math.min(ktw + 7, maxBw);
             float bx = x + w - bw - 3;
-            if (CompactGuiRender.isHovered(mouseX, mouseY, bx, y + 0.75f, bw, 11)) {
+            // Кликаем как по самой кнопке, так и по всей строке настройки —
+            // так по длинному биндовому чипу проще попасть.
+            boolean hitButton = CompactGuiRender.isHovered(mouseX, mouseY, bx, y + 0.75f, bw, 11);
+            boolean hitRow = CompactGuiRender.isHovered(mouseX, mouseY, x, y, w, 13);
+            if (hitButton || hitRow) {
                 if (GuiScreen.activeBindSetting != bs) {
                     if (GuiScreen.activeBindSetting != null) GuiScreen.activeBindSetting.active = false;
                     GuiScreen.activeBindSetting = bs;
                     bs.active = true;
                 }
-                return true;
-            }
-            if (GuiScreen.activeBindSetting == bs) {
-                int mk = -100 - button;
-                bs.key = mk;
-                bs.active = false;
-                GuiScreen.activeBindSetting = null;
                 return true;
             }
         }

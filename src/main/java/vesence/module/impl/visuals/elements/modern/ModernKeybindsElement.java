@@ -57,7 +57,7 @@ public class ModernKeybindsElement extends HudElement {
                 if (mod.bind == -1 || !mod.enable) continue;
                 RowState st = rows.computeIfAbsent(mod.name, k -> new RowState());
                 st.name = mod.name;
-                st.value = KeyUtil.getKey(mod.bind) + (mod.bind2 != -1 ? " + " + KeyUtil.getKey(mod.bind2) : "");
+                st.value = mod.bindLabel();
                 st.glyph = mod.category.getIcon();
                 st.active = true;
             }

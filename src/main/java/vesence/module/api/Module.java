@@ -37,7 +37,6 @@ public class Module extends Config {
    public static MinecraftClient mc = MinecraftClient.getInstance();
    public String name;
    public int bind;
-   public int bind2 = -1;
    public final java.util.List<Integer> comboKeys = new java.util.ArrayList<>();
    public boolean enable;
    public boolean open = false;
@@ -123,9 +122,9 @@ public class Module extends Config {
    }
 
    public String bindLabel() {
-      StringBuilder sb = new StringBuilder(vesence.utils.other.KeyUtil.getKey(this.bind));
+      StringBuilder sb = new StringBuilder(vesence.utils.render.utils.KeyUtil.getKey(this.bind));
       for (int k : this.comboKeys) {
-         sb.append(" + ").append(vesence.utils.other.KeyUtil.getKey(k));
+         sb.append(" + ").append(vesence.utils.render.utils.KeyUtil.getKey(k));
       }
       return sb.toString();
    }

@@ -18,22 +18,27 @@ public class GuiKeyPressed extends GuiScreen {
 
    public static boolean keyPressed(int keyCode, int scanCode, int modifiers) {
       long comboNow = System.currentTimeMillis();
+      // Дозахват комбо для модуля: пока открыто окно 700ms после назначения
+      // основного бинда, каждое следующее нажатие добавляется в comboKeys.
       if (GuiScreen.activeModuleBind == null && lastBoundModule != null
               && comboNow - lastBoundModuleTime < 700L
               && keyCode != 256 && keyCode != 261
-              && keyCode != lastBoundModule.bind && lastBoundModule.bind2 == -1) {
-         lastBoundModule.bind2 = keyCode;
+              && keyCode != lastBoundModule.bind
+              && !lastBoundModule.comboKeys.contains(keyCode)) {
+         lastBoundModule.comboKeys.add(keyCode);
+         lastBoundModuleTime = comboNow; // продлеваем окно для следующей клавиши
          if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
-         lastBoundModule = null;
          return true;
       }
+      // Дозахват комбо для BindSettings (предметы Assist).
       if (GuiScreen.activeBindSetting == null && lastBoundBind != null
               && comboNow - lastBoundBindTime < 700L
               && keyCode != 256 && keyCode != 261
-              && keyCode != lastBoundBind.key && lastBoundBind.key2 == -1) {
-         lastBoundBind.key2 = keyCode;
+              && keyCode != lastBoundBind.key
+              && !lastBoundBind.extraKeys.contains(keyCode)) {
+         lastBoundBind.extraKeys.add(keyCode);
+         lastBoundBindTime = comboNow;
          if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
-         lastBoundBind = null;
          return true;
       }
       if (GuiScreen.activeModuleBind != null) {
@@ -42,14 +47,14 @@ public class GuiKeyPressed extends GuiScreen {
             GuiScreen.activeModuleBind = null;
          } else if (keyCode == 261) {
             GuiScreen.activeModuleBind.bind = -1;
-            GuiScreen.activeModuleBind.bind2 = -1;
+            GuiScreen.activeModuleBind.comboKeys.clear();
             GuiScreen.activeModuleBind.binding = false;
             GuiScreen.getModuleBindAnimation(GuiScreen.activeModuleBind).run(0.0, 0.2, Easings.SINE_OUT);
             GuiScreen.activeModuleBind = null;
             if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
          } else {
             GuiScreen.activeModuleBind.bind = keyCode;
-            GuiScreen.activeModuleBind.bind2 = -1;
+            GuiScreen.activeModuleBind.comboKeys.clear();
             GuiScreen.activeModuleBind.binding = false;
             GuiScreen.getModuleBindAnimation(GuiScreen.activeModuleBind).run(1.0, 0.2, Easings.SINE_OUT);
             lastBoundModule = GuiScreen.activeModuleBind;
@@ -65,13 +70,13 @@ public class GuiKeyPressed extends GuiScreen {
             GuiScreen.activeBindSetting = null;
          } else if (keyCode == 261) {
             GuiScreen.activeBindSetting.key = -1;
-            GuiScreen.activeBindSetting.key2 = -1;
+            GuiScreen.activeBindSetting.extraKeys.clear();
             GuiScreen.activeBindSetting.active = false;
             GuiScreen.activeBindSetting = null;
             if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
          } else {
             GuiScreen.activeBindSetting.key = keyCode;
-            GuiScreen.activeBindSetting.key2 = -1;
+            GuiScreen.activeBindSetting.extraKeys.clear();
             GuiScreen.activeBindSetting.active = false;
             lastBoundBind = GuiScreen.activeBindSetting;
             lastBoundBindTime = comboNow;

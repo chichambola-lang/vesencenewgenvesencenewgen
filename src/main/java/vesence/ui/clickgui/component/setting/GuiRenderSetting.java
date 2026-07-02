@@ -356,10 +356,12 @@ public class GuiRenderSetting {
       } else if (setting instanceof BindSettings bindSetting) {
          float bindHeight = 10;
          String displayName = setting.name != null && !setting.name.isEmpty() ? setting.name : "KEY";
-         String keyText = bindSetting.active ? "..." : KeyUtil.getKey(bindSetting.key);
+         String keyText = bindSetting.active ? "..." : bindSetting.label();
          float keyTextWidth = renderer2D.measureText(FontRegistry.SF_MEDIUM, keyText, CHIP_FONT - 0.5f).width;
          float minButtonWidth = 14.0F;
-         float buttonWidth = keyTextWidth + 6;
+         // Ограничиваем ширину кнопки, чтобы длинное комбо не вылезало за панель.
+         float maxButtonWidth = width * 0.6F;
+         float buttonWidth = Math.min(keyTextWidth + 6, maxButtonWidth);
          float bindButtonX = x + width - buttonWidth - 1.0F;
          if (bindButtonX < x + renderer2D.measureText(FontRegistry.SF_MEDIUM, displayName, LABEL_FONT).width + 3.0F) {
             bindButtonX = x + width - buttonWidth;
@@ -368,6 +370,7 @@ public class GuiRenderSetting {
          renderScrollingText(renderer2D, "bind_" + setting.name, displayName, x + 3, renderY + 6, LABEL_FONT, ColorUtil.replAlpha(-1, 255), x + 3, bindTextAreaWidth, LABEL_FONT + 4);
          renderer2D.rect(bindButtonX, renderY - 2, buttonWidth, bindHeight, 2.5F, ColorUtil.replAlpha(-1, 25));
          renderer2D.rectOutline(bindButtonX, renderY - 2, buttonWidth, bindHeight, 3, ColorUtil.replAlpha(-1, 15), 1);
+         renderer2D.pushClipRect((int)(bindButtonX + 2), (int)(renderY - 3), (int)(buttonWidth - 4), (int)(bindHeight + 2));
          renderer2D.textRight(
             FontRegistry.SF_MEDIUM,
             bindButtonX + buttonWidth - 3,
@@ -376,6 +379,7 @@ public class GuiRenderSetting {
             keyText,
             ColorUtil.replAlpha(-1, 255)
          );
+         renderer2D.popClipRect();
          height = 12;
       } else if (setting instanceof StringSetting stringSetting) {
          float textFieldHeight = 13;

@@ -23,6 +23,9 @@ import java.util.List;
 
 @Environment(EnvType.CLIENT)
 public class CompactGuiClick {
+    private static vesence.module.api.setting.impl.BindSettings lastBoundBind = null;
+    private static long lastBoundBindTime = 0L;
+
     public static float[] findColorPickerPosition(Renderer2D renderer2D, HueSetting hueSetting) {
         if (hueSetting == null) {
             return null;
@@ -98,7 +101,10 @@ public class CompactGuiClick {
 
         if (GuiScreen.activeBindSetting != null && button >= 0) {
             GuiScreen.activeBindSetting.key = -100 - button;
+            GuiScreen.activeBindSetting.extraKeys.clear();
             GuiScreen.activeBindSetting.active = false;
+            lastBoundBind = GuiScreen.activeBindSetting;
+            lastBoundBindTime = System.currentTimeMillis();
             GuiScreen.activeBindSetting = null;
             if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
             return true;
@@ -573,6 +579,19 @@ public class CompactGuiClick {
     }
 
     public static boolean keyPressed(int key, int scancode, int modifiers) {
+        long comboNow = System.currentTimeMillis();
+        // Дозахват комбо для BindSettings (предметы Assist): после назначения
+        // первой клавиши открыто окно 700ms, каждое следующее нажатие добавляется.
+        if (GuiScreen.activeBindSetting == null && lastBoundBind != null
+                && comboNow - lastBoundBindTime < 700L
+                && key != 256 && key != 261
+                && key != lastBoundBind.key
+                && !lastBoundBind.extraKeys.contains(key)) {
+            lastBoundBind.extraKeys.add(key);
+            lastBoundBindTime = comboNow;
+            if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
+            return true;
+        }
         if (GuiScreen.activeModuleBind != null) {
             return false;
         }
@@ -607,12 +626,16 @@ public class CompactGuiClick {
                 GuiScreen.activeBindSetting = null;
             } else if (key == 261) {
                 GuiScreen.activeBindSetting.key = -1;
+                GuiScreen.activeBindSetting.extraKeys.clear();
                 GuiScreen.activeBindSetting.active = false;
                 GuiScreen.activeBindSetting = null;
                 if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
             } else {
                 GuiScreen.activeBindSetting.key = key;
+                GuiScreen.activeBindSetting.extraKeys.clear();
                 GuiScreen.activeBindSetting.active = false;
+                lastBoundBind = GuiScreen.activeBindSetting;
+                lastBoundBindTime = System.currentTimeMillis();
                 GuiScreen.activeBindSetting = null;
                 if (Vesence.get.configManager != null) Vesence.get.configManager.autoSave();
             }
